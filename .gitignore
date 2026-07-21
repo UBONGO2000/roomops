@@ -1,0 +1,31 @@
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# === Backend (Java/Maven) ===
+backend/target/
+backend/*.log
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# === Frontend (Angular/Node) ===
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/npm-debug.log*
+
+# === Docker ===
+*.env
+docker/data/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Secrets ===
+*.pem
+*.key
+application-local.yml
+
