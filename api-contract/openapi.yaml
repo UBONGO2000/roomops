@@ -1,7 +1,19 @@
 openapi: 3.0.3
 info:
   title: RoomOps API
-  description: API de gestion des réservations de salles pour espace de coworking B2B
+  description: |
+    API de gestion des réservations de salles pour espace de coworking B2B.
+    
+    ## Fonctionnalités
+    - Réservation de salles avec gestion de conflits (optimistic locking + contrainte d’exclusion)
+    - Gestion des pannes d’équipements (blocage automatique des salles)
+    - Authentification JWT (access + refresh tokens)
+    - Contrôle d’accès basé sur les rôles (Super-Admin, Manager, Employé)
+    - Conformité RGPD (export des données, droit à l’oubli)
+    - Visualisation des plannings et disponibilités
+    
+    ## Sécurité
+    Tous les endpoints (sauf `/auth/*`) nécessitent un token JWT dans l’en-tête `Authorization: Bearer <token>`.
   version: 1.0.0
   contact:
     name: Support RoomOps
@@ -12,12 +24,89 @@ servers:
     description: Serveur local de développement
 
 tags:
+  - name: Auth
+    description: Authentification et gestion des tokens
   - name: Bookings
     description: Gestion des réservations de salles
   - name: Rooms
     description: Consultation des salles et disponibilités
+  - name: Equipments
+    description: Gestion des équipements (pannes)
+  - name: Companies
+    description: Gestion des entreprises clientes
+  - name: Users
+    description: Gestion des utilisateurs et conformité RGPD
 
 paths:
+  # ============================
+  # AUTHENTIFICATION
+  # ============================
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Authentifier un utilisateur
+      description: Retourne un access token (durée 15 min) et un refresh token (7 jours).
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentification réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Identifiants invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Rafraîchir l'access token
+      description: Utilise le refresh token pour obtenir un nouvel access token.
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: Refresh token obtenu lors de l'authentification
+      responses:
+        '200':
+          description: Nouvel access token généré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    description: Nouveau token JWT
+                  tokenType:
+                    type: string
+                    example: Bearer
+        '401':
+          description: Refresh token invalide ou expiré
+
+  # ============================
+  # RÉSERVATIONS
+  # ============================
   /bookings:
     post:
       tags:
@@ -25,8 +114,9 @@ paths:
       summary: Créer une nouvelle réservation
       description: |
         Crée une réservation pour une salle sur un créneau horaire donné.
-        Vérifie automatiquement la disponibilité et les conflits.
-        Retourne 409 en cas de chevauchement avec une réservation existante.
+        Vérifie automatiquement la disponibilité (chevauchement) et les conflits.
+        - Si un conflit est détecté, retourne 409 avec le code `BOOKING_CONFLICT`.
+        - La salle doit être active et ne contenir aucun équipement en panne.
       operationId: createBooking
       security:
         - bearerAuth: []
@@ -51,185 +141,117 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BookingResponse'
-              examples:
-                createdBooking:
-                  summary: Réservation confirmée
-                  value:
-                    id: 1
-                    roomId: 1
-                    roomName: "Salle Alpha"
-                    userId: 42
-                    userName: "Jean Dupont"
-                    companyName: "TechCorp"
-                    dateDebut: '2024-01-15T09:00:00'
-                    dateFin: '2024-01-15T11:00:00'
-                    statut: "CONFIRMEE"
-                    motif: "Réunion d'équipe projet"
-                    version: 1
         '400':
           description: Données invalides (dates incohérentes, salle inexistante, etc.)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                invalidDates:
-                  summary: Dates incohérentes
-                  value:
-                    code: "VALIDATION_ERROR"
-                    message: "La date de fin doit être postérieure à la date de début"
-                    timestamp: '2024-01-15T08:30:00'
         '401':
           description: Non authentifié
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Non autorisé (rôle insuffisant)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Rôle insuffisant
         '409':
-          description: Conflit - Créneau déjà réservé
+          description: Conflit (créneau déjà réservé ou salle indisponible)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                conflict:
-                  summary: Chevauchement de créneau
-                  value:
-                    code: "BOOKING_CONFLICT"
-                    message: "Cette salle est déjà réservée sur le créneau demandé"
-                    timestamp: '2024-01-15T08:30:00'
 
     get:
       tags:
         - Bookings
-      summary: Lister les réservations
+      summary: Lister les réservations (avec pagination et filtres)
       description: |
-        Récupère la liste des réservations avec pagination et filtres.
-        Les employés ne voient que leurs propres réservations.
-        Les managers voient les réservations de leur entreprise.
-        Les super-admins voient toutes les réservations.
+        Récupère la liste des réservations selon les droits de l'utilisateur :
+        - Employé : uniquement ses propres réservations
+        - Manager : réservations de son entreprise
+        - Super-Admin : toutes les réservations
       operationId: listBookings
       security:
         - bearerAuth: []
       parameters:
         - name: roomId
           in: query
-          description: Filtrer par identifiant de salle
           schema:
             type: integer
             format: int64
+          description: Filtrer par salle
         - name: dateDebut
           in: query
-          description: Filtrer les réservations à partir de cette date
           schema:
             type: string
             format: date-time
+          description: Créneaux à partir de cette date
         - name: dateFin
           in: query
-          description: Filtrer les réservations jusqu'à cette date
           schema:
             type: string
             format: date-time
+          description: Créneaux jusqu'à cette date
         - name: statut
           in: query
-          description: Filtrer par statut
           schema:
             $ref: '#/components/schemas/BookingStatut'
+          description: Filtrer par statut
         - name: page
           in: query
-          description: Numéro de page (0-indexed)
           schema:
             type: integer
             default: 0
             minimum: 0
+          description: Page (index 0)
         - name: size
           in: query
-          description: Taille de la page
           schema:
             type: integer
             default: 20
             minimum: 1
             maximum: 100
+          description: Nombre d'éléments par page
       responses:
         '200':
-          description: Liste des réservations récupérée avec succès
+          description: Liste paginée des réservations
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BookingPageResponse'
         '401':
           description: Non authentifié
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /bookings/{id}:
     get:
       tags:
         - Bookings
-      summary: Récupérer une réservation par son ID
+      summary: Obtenir une réservation par ID
       operationId: getBookingById
       security:
         - bearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          description: Identifiant de la réservation
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/BookingId'
       responses:
         '200':
-          description: Réservation trouvée
+          description: Détail de la réservation
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BookingResponse'
-        '401':
-          description: Non authentifié
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Non autorisé (accès refusé)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Réservation non trouvée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
     put:
       tags:
         - Bookings
       summary: Modifier une réservation
       description: |
-        Modifie une réservation existante.
-        Vérifie les conflits si les dates ou la salle sont modifiées.
-        Utilise l'optimistic locking (champ version).
+        Permet de changer la salle, les horaires ou le motif.
+        Utilise l’optimistic locking : le champ `version` doit être celui actuellement en base.
+        Vérifie les nouveaux conflits éventuels.
       operationId: updateBooking
       security:
         - bearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/BookingId'
       requestBody:
         required: true
         content:
@@ -238,89 +260,84 @@ paths:
               $ref: '#/components/schemas/BookingUpdateRequest'
       responses:
         '200':
-          description: Réservation modifiée avec succès
+          description: Réservation modifiée
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BookingResponse'
         '400':
           description: Données invalides
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Non authentifié
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Non autorisé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Réservation non trouvée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Conflit de version ou de créneau
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
     delete:
       tags:
         - Bookings
-      summary: Annuler une réservation
-      description: |
-        Annule une réservation (soft delete).
-        Change le statut à ANNULEE.
+      summary: Annuler une réservation (soft delete)
+      description: Passe le statut à `ANNULEE` et libère le créneau.
       operationId: cancelBooking
       security:
         - bearerAuth: []
       parameters:
-        - name: id
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '204':
+          description: Réservation annulée
+        '404':
+          description: Réservation non trouvée
+
+  # ============================
+  # SALLES
+  # ============================
+  /rooms:
+    get:
+      tags:
+        - Rooms
+      summary: Lister toutes les salles
+      description: Retourne la liste des salles avec leur statut (active, indisponible pour panne).
+      operationId: listRooms
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des salles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoomResponse'
+
+  /rooms/{roomId}:
+    get:
+      tags:
+        - Rooms
+      summary: Détail d'une salle
+      operationId: getRoomById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
           in: path
           required: true
           schema:
             type: integer
             format: int64
       responses:
-        '204':
-          description: Réservation annulée avec succès
-        '401':
-          description: Non authentifié
+        '200':
+          description: Salle trouvée
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Non autorisé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/RoomResponse'
         '404':
-          description: Réservation non trouvée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Salle non trouvée
 
   /rooms/{roomId}/availability:
     get:
       tags:
         - Rooms
-      summary: Vérifier la disponibilité d'une salle
-      description: |
-        Vérifie si une salle est disponible sur un créneau donné.
-        Retourne un booléen et la liste des créneaux disponibles sur la journée.
+      summary: Vérifier la disponibilité d'une salle sur un créneau
       operationId: checkRoomAvailability
       security:
         - bearerAuth: []
@@ -350,28 +367,294 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AvailabilityResponse'
-        '401':
-          description: Non authentifié
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Salle non trouvée
+
+  # ============================
+  # ÉQUIPEMENTS
+  # ============================
+  /equipments:
+    get:
+      tags:
+        - Equipments
+      summary: Lister tous les équipements
+      description: Réservé au Super-Admin.
+      operationId: listEquipments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des équipements
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/EquipmentResponse'
 
+  /equipments/{equipmentId}/status:
+    put:
+      tags:
+        - Equipments
+      summary: Changer le statut d'un équipement (opérationnel / en panne)
+      description: |
+        Déclenche les actions associées :
+        - Si `EN_PANNE`, les futures réservations de la salle sont annulées.
+        - Si `OPERATIONNEL`, la salle redevient réservable.
+      operationId: updateEquipmentStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: equipmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - statut
+              properties:
+                statut:
+                  $ref: '#/components/schemas/EquipmentStatut'
+      responses:
+        '200':
+          description: Statut mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentResponse'
+        '404':
+          description: Équipement non trouvé
+
+  # ============================
+  # ENTREPRISES
+  # ============================
+  /companies:
+    get:
+      tags:
+        - Companies
+      summary: Lister toutes les entreprises (Super-Admin)
+      operationId: listCompanies
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des entreprises
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyResponse'
+
+    post:
+      tags:
+        - Companies
+      summary: Créer une entreprise (Super-Admin)
+      operationId: createCompany
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyRequest'
+      responses:
+        '201':
+          description: Entreprise créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+
+  /companies/{companyId}/employees:
+    get:
+      tags:
+        - Companies
+      summary: Lister les employés d'une entreprise (Manager, Super-Admin)
+      operationId: getCompanyEmployees
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Liste des employés
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+
+    post:
+      tags:
+        - Companies
+      summary: Ajouter un employé à l'entreprise (Manager, Super-Admin)
+      operationId: addEmployee
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Employé créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+  /companies/{companyId}/employees/{userId}:
+    delete:
+      tags:
+        - Companies
+      summary: Supprimer un employé (Manager, Super-Admin)
+      operationId: removeEmployee
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Employé supprimé
+
+  # ============================
+  # UTILISATEURS (PROFIL & RGPD)
+  # ============================
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Profil de l'utilisateur connecté
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profil utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+  /users/export:
+    get:
+      tags:
+        - Users
+      summary: Export des données personnelles (RGPD)
+      description: Retourne toutes les données liées à l'utilisateur connecté dans un format structuré.
+      operationId: exportUserData
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Données exportées
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDataExport'
+
+  /users/anonymize:
+    delete:
+      tags:
+        - Users
+      summary: Droit à l'oubli (anonymisation)
+      description: |
+        Anonymise les données personnelles (nom, email) et supprime les réservations passées.
+        Les données de facturation agrégées restent conservées de manière anonyme.
+      operationId: anonymizeUser
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Anonymisation effectuée
+
+# ============================================================
+# COMPOSANTS RÉUTILISABLES
+# ============================================================
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Token JWT obtenu via /auth/login
+      description: Token JWT obtenu via `/auth/login`
+
+  parameters:
+    BookingId:
+      name: id
+      in: path
+      required: true
+      description: Identifiant de la réservation
+      schema:
+        type: integer
+        format: int64
 
   schemas:
+    # ---- AUTH ----
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: jean.dupont@techcorp.com
+        password:
+          type: string
+          format: password
+          example: "********"
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT d'accès (15 min)
+        refreshToken:
+          type: string
+          description: Refresh token (7 jours)
+        tokenType:
+          type: string
+          example: Bearer
+
+    # ---- BOOKING ----
     BookingRequest:
       type: object
       required:
@@ -382,47 +665,43 @@ components:
         roomId:
           type: integer
           format: int64
-          description: Identifiant de la salle à réserver
+          description: Identifiant de la salle
           example: 1
         dateDebut:
           type: string
           format: date-time
-          description: Date et heure de début de la réservation
           example: '2024-01-15T09:00:00'
         dateFin:
           type: string
           format: date-time
-          description: Date et heure de fin de la réservation
           example: '2024-01-15T11:00:00'
         motif:
           type: string
           maxLength: 500
-          description: Motif de la réservation (optionnel)
+          description: Motif (optionnel)
           example: "Réunion d'équipe projet"
 
     BookingUpdateRequest:
       type: object
+      required:
+        - version
       properties:
         roomId:
           type: integer
           format: int64
-          description: Nouvel identifiant de salle (optionnel)
         dateDebut:
           type: string
           format: date-time
-          description: Nouvelle date de début (optionnel)
         dateFin:
           type: string
           format: date-time
-          description: Nouvelle date de fin (optionnel)
         motif:
           type: string
           maxLength: 500
-          description: Nouveau motif (optionnel)
         version:
           type: integer
           format: int64
-          description: Version actuelle pour optimistic locking
+          description: Version actuelle (optimistic locking)
           example: 1
 
     BookingResponse:
@@ -431,51 +710,31 @@ components:
         id:
           type: integer
           format: int64
-          description: Identifiant unique de la réservation
-          example: 1
         roomId:
           type: integer
           format: int64
-          description: Identifiant de la salle
-          example: 1
         roomName:
           type: string
-          description: Nom de la salle
-          example: "Salle Alpha"
         userId:
           type: integer
           format: int64
-          description: Identifiant de l'utilisateur ayant réservé
-          example: 42
         userName:
           type: string
-          description: Nom complet de l'utilisateur
-          example: "Jean Dupont"
         companyName:
           type: string
-          description: Nom de l'entreprise
-          example: "TechCorp"
         dateDebut:
           type: string
           format: date-time
-          description: Date et heure de début
-          example: '2024-01-15T09:00:00'
         dateFin:
           type: string
           format: date-time
-          description: Date et heure de fin
-          example: '2024-01-15T11:00:00'
         statut:
           $ref: '#/components/schemas/BookingStatut'
         motif:
           type: string
-          description: Motif de la réservation
-          example: "Réunion d'équipe projet"
         version:
           type: integer
           format: int64
-          description: Version pour optimistic locking
-          example: 1
 
     BookingPageResponse:
       type: object
@@ -487,47 +746,12 @@ components:
         totalElements:
           type: integer
           format: int64
-          description: Nombre total d'éléments
-          example: 42
         totalPages:
           type: integer
-          description: Nombre total de pages
-          example: 3
         number:
           type: integer
-          description: Numéro de page actuelle
-          example: 0
         size:
           type: integer
-          description: Taille de la page
-          example: 20
-
-    AvailabilityResponse:
-      type: object
-      properties:
-        roomId:
-          type: integer
-          format: int64
-          description: Identifiant de la salle
-          example: 1
-        roomName:
-          type: string
-          description: Nom de la salle
-          example: "Salle Alpha"
-        isAvailable:
-          type: boolean
-          description: Indique si la salle est disponible sur le créneau demandé
-          example: true
-        dateDebut:
-          type: string
-          format: date-time
-          description: Début du créneau vérifié
-          example: '2024-01-15T09:00:00'
-        dateFin:
-          type: string
-          format: date-time
-          description: Fin du créneau vérifié
-          example: '2024-01-15T11:00:00'
 
     BookingStatut:
       type: string
@@ -537,6 +761,178 @@ components:
         - ANNULEE
       description: Statut de la réservation
 
+    # ---- ROOM ----
+    RoomResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nom:
+          type: string
+          example: "Salle Alpha"
+        capacite:
+          type: integer
+          example: 8
+        buildingId:
+          type: integer
+          format: int64
+        buildingName:
+          type: string
+        estActif:
+          type: boolean
+        indisponibilite:
+          type: string
+          nullable: true
+          description: "Raison si la salle est bloquée (ex: 'Panne projecteur')"
+          example: null
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int64
+        roomName:
+          type: string
+        isAvailable:
+          type: boolean
+          description: Disponible sur le créneau demandé
+        reason:
+          type: string
+          nullable: true
+          description: Motif d'indisponibilité (panne, réservé, etc.)
+        dateDebut:
+          type: string
+          format: date-time
+        dateFin:
+          type: string
+          format: date-time
+
+    # ---- EQUIPMENT ----
+    EquipmentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          example: "Projecteur"
+        roomId:
+          type: integer
+          format: int64
+        roomName:
+          type: string
+        statut:
+          $ref: '#/components/schemas/EquipmentStatut'
+
+    EquipmentStatut:
+      type: string
+      enum:
+        - OPERATIONNEL
+        - EN_PANNE
+
+    # ---- COMPANY ----
+    CompanyRequest:
+      type: object
+      required:
+        - nom
+      properties:
+        nom:
+          type: string
+          example: "TechCorp"
+        siret:
+          type: string
+          example: "12345678901234"
+        adresseFacturation:
+          type: string
+        tarifHoraire:
+          type: number
+          format: float
+
+    CompanyResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nom:
+          type: string
+        siret:
+          type: string
+        adresseFacturation:
+          type: string
+        tarifHoraire:
+          type: number
+          format: float
+        creditsCompensation:
+          type: number
+          format: float
+
+    # ---- USER ----
+    CreateUserRequest:
+      type: object
+      required:
+        - email
+        - password
+        - nom
+        - prenom
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        nom:
+          type: string
+        prenom:
+          type: string
+        role:
+          type: string
+          enum:
+            - EMPLOYEE
+            - MANAGER
+          default: EMPLOYEE
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+        nom:
+          type: string
+        prenom:
+          type: string
+        role:
+          type: string
+        companyId:
+          type: integer
+          format: int64
+          nullable: true
+        companyName:
+          type: string
+          nullable: true
+
+    # ---- RGPD ----
+    UserDataExport:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        bookings:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingResponse'
+        exportDate:
+          type: string
+          format: date-time
+
+    # ---- ERREUR ----
     ErrorResponse:
       type: object
       required:
@@ -546,28 +942,20 @@ components:
       properties:
         code:
           type: string
-          description: Code d'erreur technique
           example: "BOOKING_CONFLICT"
         message:
           type: string
-          description: Message d'erreur lisible
           example: "Cette salle est déjà réservée sur le créneau demandé"
         timestamp:
           type: string
           format: date-time
-          description: Horodatage de l'erreur
           example: '2024-01-15T08:30:00'
         details:
           type: array
-          description: Détails supplémentaires (exemple erreurs de validation)
           items:
             type: object
             properties:
               field:
                 type: string
-                description: Nom du champ en erreur
-                example: "dateFin"
               message:
                 type: string
-                description: Message d'erreur spécifique au champ
-                example: "La date de fin doit être postérieure à la date de début"
