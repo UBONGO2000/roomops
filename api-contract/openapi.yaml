@@ -594,8 +594,10 @@ paths:
         - Users
       summary: Droit à l'oubli (anonymisation)
       description: |
-        Anonymise les données personnelles (nom, email) et supprime les réservations passées.
-        Les données de facturation agrégées restent conservées de manière anonyme.
+        Anonymise les données personnelles de l'utilisateur (nom, prénom, email remplacés
+        par des valeurs anonymisées). Les réservations (`Booking`) sont conservées telles
+        quelles pour préserver l'intégrité de l'historique d'occupation des salles, mais
+        elles sont détachées de toute donnée personnelle identifiante.
       operationId: anonymizeUser
       security:
         - bearerAuth: []
@@ -756,10 +758,11 @@ components:
     BookingStatut:
       type: string
       enum:
-        - EN_ATTENTE
         - CONFIRMEE
         - ANNULEE
-      description: Statut de la réservation
+      description: |
+        Statut de la réservation. Pas de workflow d'approbation dans le MVP :
+        une réservation est confirmée immédiatement si aucun conflit n'est détecté.
 
     # ---- ROOM ----
     RoomResponse:
