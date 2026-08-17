@@ -869,9 +869,6 @@ components:
         tarifHoraire:
           type: number
           format: float
-        creditsCompensation:
-          type: number
-          format: float
 
     # ---- USER ----
     CreateUserRequest:
