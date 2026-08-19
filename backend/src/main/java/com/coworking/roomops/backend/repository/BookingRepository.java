@@ -28,4 +28,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
             @Param("dateDebut") LocalDateTime dateDebut,
             @Param("dateFin") LocalDateTime dateFin,
             @Param("excludeBookingId") Long excludeBookingId);
+
+    java.util.List<Booking> findByRoomIdAndStatutAndDateDebutAfter(
+            Long roomId,
+            com.coworking.roomops.backend.domain.BookingStatut statut,
+            LocalDateTime dateDebut);
 }
