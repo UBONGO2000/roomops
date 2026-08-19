@@ -45,7 +45,13 @@
       <span class="brand__name">RoomOps</span>
     </a>
     <nav class="site-nav" aria-label="Principale">
-      <a routerLink="/connexion" mat-flat-button color="primary">Se connecter</a>
+      @if (currentUser(); as user) {
+        <a routerLink="/reservations" mat-button>Mes réservations</a>
+        <span class="site-nav__user">{{ user.email }}</span>
+        <button type="button" mat-stroked-button (click)="logout()">Se déconnecter</button>
+      } @else {
+        <a routerLink="/connexion" mat-flat-button color="primary">Se connecter</a>
+      }
     </nav>
   </div>
 </mat-toolbar>

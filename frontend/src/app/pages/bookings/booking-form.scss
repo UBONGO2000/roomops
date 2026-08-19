@@ -1,0 +1,75 @@
+.booking-form {
+  max-width: 36rem;
+  margin: 2rem auto 3rem;
+  padding: 0 1.5rem;
+}
+
+.booking-form__card h1 {
+  margin: 0 0 1.5rem;
+  font-size: 1.5rem;
+}
+
+.booking-form__field {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.booking-form__row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.booking-form__row .booking-form__field {
+  flex: 1;
+}
+
+.booking-form__field--time {
+  flex: 0 0 8rem;
+}
+
+.booking-form__check {
+  margin: 0.5rem 0 1rem;
+}
+
+.booking-form__availability {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.booking-form__availability--ok {
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-primary);
+  color: var(--color-text);
+}
+
+.booking-form__availability--ko {
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-error);
+  color: var(--color-error);
+}
+
+.booking-form__error {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--color-error);
+  background: var(--color-surface);
+  color: var(--color-error);
+}
+
+.booking-form__submit {
+  width: 100%;
+}
+
+@media (max-width: 30rem) {
+  .booking-form__row {
+    flex-direction: column;
+  }
+
+  .booking-form__field--time {
+    flex: 1;
+  }
+}

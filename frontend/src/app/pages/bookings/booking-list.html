@@ -1,0 +1,88 @@
+<section class="booking-list" aria-labelledby="booking-list-heading">
+  <div class="booking-list__header">
+    <div>
+      <h1 id="booking-list-heading">Mes réservations</h1>
+      @if (currentUser(); as user) {
+        <p class="booking-list__scope-note">
+          @switch (user.role) {
+            @case ('EMPLOYEE') {
+              Vous voyez vos propres réservations.
+            }
+            @case ('MANAGER') {
+              Vous voyez les réservations de votre entreprise.
+            }
+            @case ('SUPER_ADMIN') {
+              Vous voyez toutes les réservations du site.
+            }
+          }
+        </p>
+      }
+    </div>
+    <a routerLink="/reservations/nouvelle" mat-flat-button color="primary">Nouvelle réservation</a>
+  </div>
+
+  <nav class="booking-list__week-nav" aria-label="Navigation par semaine">
+    <button type="button" mat-stroked-button (click)="previousWeek()">
+      &larr; Semaine précédente
+    </button>
+    <span class="booking-list__week-label">{{ formatWeekRangeLabel() }}</span>
+    <button type="button" mat-stroked-button (click)="nextWeek()">Semaine suivante &rarr;</button>
+  </nav>
+
+  @if (errorMessage()) {
+    <p class="booking-list__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p role="status">Chargement des réservations…</p>
+  } @else {
+    @for (group of dayGroups(); track group.date.getTime()) {
+      <section class="booking-list__day" [attr.aria-labelledby]="'day-' + group.date.getTime()">
+        <h2 [id]="'day-' + group.date.getTime()" class="booking-list__day-heading">
+          {{ formatDayLabel(group.date) }}
+        </h2>
+
+        @if (group.bookings.length === 0) {
+          <p class="booking-list__empty">Aucune réservation.</p>
+        } @else {
+          <ul class="booking-list__items">
+            @for (booking of group.bookings; track booking.id) {
+              <li>
+                <mat-card appearance="outlined" class="booking-list__item">
+                  <mat-card-content>
+                    <div class="booking-list__item-main">
+                      <span class="booking-list__time">{{ formatTimeRange(booking) }}</span>
+                      <span class="booking-list__room">{{ booking.roomName }}</span>
+                      @if (booking.statut === 'ANNULEE') {
+                        <span class="booking-list__badge booking-list__badge--cancelled"
+                          >Annulée</span
+                        >
+                      }
+                    </div>
+                    @if (booking.motif) {
+                      <p class="booking-list__motif">{{ booking.motif }}</p>
+                    }
+                    <p class="booking-list__meta">
+                      {{ booking.userName }} · {{ booking.companyName }}
+                    </p>
+                    @if (booking.statut === 'CONFIRMEE') {
+                      <button
+                        type="button"
+                        mat-button
+                        color="warn"
+                        [disabled]="cancellingId() === booking.id"
+                        (click)="cancelBooking(booking)"
+                      >
+                        {{ cancellingId() === booking.id ? 'Annulation…' : 'Annuler' }}
+                      </button>
+                    }
+                  </mat-card-content>
+                </mat-card>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
+  }
+</section>
