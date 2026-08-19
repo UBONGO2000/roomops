@@ -9,6 +9,7 @@ import com.coworking.roomops.backend.model.TokenResponse;
 import com.coworking.roomops.backend.repository.UserRepository;
 import com.coworking.roomops.backend.security.InvalidTokenException;
 import com.coworking.roomops.backend.security.JwtService;
+import com.coworking.roomops.backend.security.TokenRevocationService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +23,17 @@ public class AuthController implements AuthApi {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final TokenRevocationService tokenRevocationService;
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthController(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            TokenRevocationService tokenRevocationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @Override
@@ -56,11 +63,13 @@ public class AuthController implements AuthApi {
         if (!jwtService.isRefreshToken(claims)) {
             throw new InvalidTokenException("Ce token n'est pas un refresh token");
         }
+        String email = jwtService.extractEmail(claims);
+        if (tokenRevocationService.isRevoked(email, jwtService.extractIssuedAt(claims))) {
+            throw new InvalidTokenException("Ce token a été révoqué");
+        }
 
         User user =
-                userRepository
-                        .findByEmail(jwtService.extractEmail(claims))
-                        .orElseThrow(() -> new InvalidTokenException("Utilisateur introuvable"));
+                userRepository.findByEmail(email).orElseThrow(() -> new InvalidTokenException("Utilisateur introuvable"));
 
         RefreshToken200Response response =
                 new RefreshToken200Response().accessToken(jwtService.generateAccessToken(user)).tokenType("Bearer");
