@@ -1,1 +1,115 @@
-/* You can add global styles to this file, and also import other style files */
+// Include theming for Angular Material with `mat.theme()`.
+// This Sass mixin will define CSS variables that are used for styling Angular Material
+// components according to the Material 3 design spec.
+// Learn more about theming and how to use it for your application's
+// custom components at https://material.angular.dev/guide/theming
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+/* Palette du contenu "maison" (héro, comparatif, listes de features) alignée sur les
+   variables système générées par le thème Material (mat.theme(), azure/blue) plutôt que sur
+   des couleurs choisies à part : une seule source de vérité pour tout le design, composants
+   Material inclus.
+   Contraste vérifié sur les valeurs RÉELLEMENT générées par ce thème (thème clair) :
+   - on-surface (#1a1b1f) sur surface (#faf9fd) : ratio ≈ 17:1
+   - on-surface-variant (#44474e) sur surface : ratio ≈ 9.3:1
+   - primary (#005cbb), texte ou fond de bouton avec blanc : ratio ≈ 6.5:1
+   - error (#ba1a1a) sur surface : ratio ≈ 6.5:1
+   Toutes au-dessus du minimum AA (4.5:1 texte normal, 3:1 texte large/UI). Ces valeurs peuvent
+   changer si le thème est régénéré (mat.theme(...) dans ce fichier) : à revérifier si la
+   palette change. */
+:root {
+  --color-bg: var(--mat-sys-surface);
+  --color-surface: var(--mat-sys-surface-container);
+  --color-border: var(--mat-sys-outline-variant);
+  --color-text: var(--mat-sys-on-surface);
+  --color-text-muted: var(--mat-sys-on-surface-variant);
+  --color-primary: var(--mat-sys-primary);
+  --color-primary-contrast: var(--mat-sys-on-primary);
+  --color-focus: var(--mat-sys-primary);
+  --color-error: var(--mat-sys-error);
+
+  --font-sans: Roboto, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --max-content-width: 72rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  // "light dark" laisserait le thème suivre les préférences système ; on force "light" tant
+  // qu'aucun thème sombre n'est fourni pour les composants Material.
+  color-scheme: light;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+/* Un indicateur de focus visible est une exigence WCAG (2.4.7) : on ne le supprime jamais,
+   on le renforce plutôt pour la navigation au clavier, sans l'imposer aussi à la souris. */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Lien d'évitement (WCAG 2.4.1) : invisible tant qu'il n'a pas le focus clavier, visible et
+   au premier plan dès qu'on y arrive par tabulation. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 0 0 0.5rem 0;
+}
+
+.skip-link:focus-visible {
+  left: 0;
+}
+
+/* Respecte la préférence système "réduire les animations" (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
