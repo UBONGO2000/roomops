@@ -1,6 +1,9 @@
 package com.coworking.roomops.backend.controller;
 
+import com.coworking.roomops.backend.exception.BookingConflictException;
 import com.coworking.roomops.backend.exception.EmployeeHasBookingsException;
+import com.coworking.roomops.backend.exception.InvalidBookingPeriodException;
+import com.coworking.roomops.backend.exception.OptimisticLockConflictException;
 import com.coworking.roomops.backend.model.ErrorResponse;
 import com.coworking.roomops.backend.model.ErrorResponseDetailsInner;
 import com.coworking.roomops.backend.security.InvalidTokenException;
@@ -8,6 +11,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.OffsetDateTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -40,6 +44,25 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmployeeHasBookingsException.class)
     public ResponseEntity<ErrorResponse> handleEmployeeHasBookings(EmployeeHasBookingsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody("EMPLOYEE_HAS_BOOKINGS", ex.getMessage()));
+    }
+
+    @ExceptionHandler(BookingConflictException.class)
+    public ResponseEntity<ErrorResponse> handleBookingConflict(BookingConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody("BOOKING_CONFLICT", ex.getMessage()));
+    }
+
+    @ExceptionHandler({OptimisticLockConflictException.class, ObjectOptimisticLockingFailureException.class})
+    public ResponseEntity<ErrorResponse> handleOptimisticLockConflict(Exception ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        errorBody(
+                                "OPTIMISTIC_LOCK_CONFLICT",
+                                "La ressource a été modifiée depuis votre dernière lecture, merci de recharger"));
+    }
+
+    @ExceptionHandler(InvalidBookingPeriodException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidBookingPeriod(InvalidBookingPeriodException ex) {
+        return ResponseEntity.badRequest().body(errorBody("INVALID_PERIOD", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
