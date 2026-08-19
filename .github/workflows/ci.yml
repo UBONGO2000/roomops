@@ -34,6 +34,12 @@ jobs:
           distribution: temurin
           cache: maven
 
+      - name: Ensure mvnw is executable
+        # Le bit d'exécution se perd facilement quand mvnw est committé depuis un poste
+        # Windows (pas de notion native de permissions Unix). Filet de sécurité pour
+        # éviter de re-casser la CI si ça se reproduit après un futur commit.
+        run: chmod +x backend/mvnw
+
       - name: Build and test (backend)
         working-directory: backend
         run: ./mvnw -B verify
