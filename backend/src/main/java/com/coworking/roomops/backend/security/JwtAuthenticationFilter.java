@@ -20,9 +20,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final TokenRevocationService tokenRevocationService;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, TokenRevocationService tokenRevocationService) {
         this.jwtService = jwtService;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @Override
@@ -35,12 +37,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(BEARER_PREFIX.length());
             try {
                 Claims claims = jwtService.parseAndValidate(token);
-                if (jwtService.isAccessToken(claims)) {
+                String email = jwtService.extractEmail(claims);
+                boolean revoked = tokenRevocationService.isRevoked(email, jwtService.extractIssuedAt(claims));
+                if (jwtService.isAccessToken(claims) && !revoked) {
                     SimpleGrantedAuthority authority =
                             new SimpleGrantedAuthority("ROLE_" + jwtService.extractRole(claims));
                     UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    jwtService.extractEmail(claims), null, List.of(authority));
+                            new UsernamePasswordAuthenticationToken(email, null, List.of(authority));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (JwtException | IllegalArgumentException ex) {

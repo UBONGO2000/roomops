@@ -71,6 +71,10 @@ public class JwtService {
         return claims.get(CLAIM_ROLE, String.class);
     }
 
+    public java.time.Instant extractIssuedAt(Claims claims) {
+        return claims.getIssuedAt().toInstant();
+    }
+
     public boolean isAccessToken(Claims claims) {
         return TOKEN_TYPE_ACCESS.equals(claims.get(CLAIM_TYPE, String.class));
     }

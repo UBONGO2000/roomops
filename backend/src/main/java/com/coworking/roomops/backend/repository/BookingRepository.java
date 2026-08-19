@@ -33,4 +33,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
             Long roomId,
             com.coworking.roomops.backend.domain.BookingStatut statut,
             LocalDateTime dateDebut);
+
+    java.util.List<Booking> findByUserId(Long userId);
 }
