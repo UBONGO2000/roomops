@@ -1,0 +1,80 @@
+<section class="login" aria-labelledby="login-heading">
+  <mat-card class="login__card" appearance="outlined">
+    <mat-card-content>
+      <h1 id="login-heading">Se connecter</h1>
+      <p class="login__intro">
+        Accédez à votre espace RoomOps avec les identifiants fournis par votre entreprise.
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+        <mat-form-field appearance="outline" class="login__field">
+          <mat-label>Adresse email</mat-label>
+          <input
+            matInput
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            #emailInput
+            required
+          />
+          @if (form.controls.email.invalid && form.controls.email.touched) {
+            @if (form.controls.email.hasError('required')) {
+              <mat-error>L'adresse email est obligatoire.</mat-error>
+            } @else if (form.controls.email.hasError('email')) {
+              <mat-error>Le format de l'adresse email n'est pas valide.</mat-error>
+            }
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="login__field">
+          <mat-label>Mot de passe</mat-label>
+          <input
+            matInput
+            [type]="passwordVisible() ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="current-password"
+            #passwordInput
+            required
+          />
+          <button
+            matSuffix
+            mat-button
+            type="button"
+            class="login__toggle-visibility"
+            (click)="togglePasswordVisibility()"
+            [attr.aria-pressed]="passwordVisible()"
+            [attr.aria-label]="
+              passwordVisible() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+            "
+          >
+            {{ passwordVisible() ? 'Masquer' : 'Afficher' }}
+          </button>
+          @if (form.controls.password.invalid && form.controls.password.touched) {
+            <mat-error>Le mot de passe est obligatoire.</mat-error>
+          }
+        </mat-form-field>
+
+        <button type="submit" mat-flat-button color="primary" class="login__submit">
+          Se connecter
+        </button>
+
+        @if (submitted() && form.valid) {
+          <p class="login__status" role="status">
+            Formulaire valide. La connexion réelle à l'API (stockage du token, redirection) sera
+            branchée dans un prochain ticket.
+          </p>
+        }
+      </form>
+
+      <p class="login__no-account">
+        Pas encore de compte ? Les comptes sont créés par le gestionnaire de votre entreprise, pas
+        de création libre depuis cette page.
+      </p>
+
+      <p class="login__demo-hint">
+        Compte de démonstration : <code>{{ demoCredentials.email }}</code> /
+        <code>{{ demoCredentials.password }}</code>
+      </p>
+    </mat-card-content>
+  </mat-card>
+</section>
