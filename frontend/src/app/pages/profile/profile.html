@@ -1,0 +1,49 @@
+<section class="profile" aria-labelledby="profile-heading">
+  <mat-card class="profile__card" appearance="outlined">
+    <mat-card-content>
+      <h1 id="profile-heading">Mon profil</h1>
+
+      @if (errorMessage()) {
+        <p class="profile__error" role="alert">{{ errorMessage() }}</p>
+      }
+
+      @if (loading()) {
+        <p role="status">Chargement du profil…</p>
+      } @else if (user(); as currentUser) {
+        <dl class="profile__details">
+          <dt>Nom</dt>
+          <dd>{{ currentUser.prenom }} {{ currentUser.nom }}</dd>
+          <dt>Email</dt>
+          <dd>{{ currentUser.email }}</dd>
+          <dt>Rôle</dt>
+          <dd>{{ currentUser.role }}</dd>
+          @if (currentUser.companyName) {
+            <dt>Entreprise</dt>
+            <dd>{{ currentUser.companyName }}</dd>
+          }
+        </dl>
+
+        <div class="profile__actions">
+          <button type="button" mat-stroked-button [disabled]="exporting()" (click)="exportData()">
+            {{ exporting() ? 'Export en cours…' : 'Exporter mes données (RGPD)' }}
+          </button>
+
+          <button
+            type="button"
+            mat-stroked-button
+            color="warn"
+            [disabled]="anonymizing()"
+            (click)="anonymize()"
+          >
+            {{ anonymizing() ? 'Anonymisation…' : 'Anonymiser mon compte' }}
+          </button>
+        </div>
+
+        <p class="profile__hint">
+          L'export télécharge un fichier JSON contenant vos informations et vos réservations.
+          L'anonymisation est définitive et vous déconnecte immédiatement.
+        </p>
+      }
+    </mat-card-content>
+  </mat-card>
+</section>

@@ -51,9 +51,11 @@ class EquipmentServiceTest {
         when(bookingRepository.findByRoomIdAndStatutAndDateDebutAfter(eq(1L), eq(BookingStatut.CONFIRMEE), any()))
                 .thenReturn(List.of(futureBooking));
 
-        Equipment result = equipmentService.updateStatus(2L, EquipmentStatut.EN_PANNE);
+        EquipmentService.EquipmentStatusUpdateResult result =
+                equipmentService.updateStatus(2L, EquipmentStatut.EN_PANNE);
 
-        assertEquals(EquipmentStatut.EN_PANNE, result.getStatut());
+        assertEquals(EquipmentStatut.EN_PANNE, result.equipment().getStatut());
+        assertEquals(1, result.cancelledBookingsCount());
 
         ArgumentCaptor<List<Booking>> savedBookings = ArgumentCaptor.forClass(List.class);
         verify(bookingRepository).saveAll(savedBookings.capture());
@@ -72,9 +74,11 @@ class EquipmentServiceTest {
 
         when(equipmentRepository.findById(2L)).thenReturn(Optional.of(equipment));
 
-        Equipment result = equipmentService.updateStatus(2L, EquipmentStatut.OPERATIONNEL);
+        EquipmentService.EquipmentStatusUpdateResult result =
+                equipmentService.updateStatus(2L, EquipmentStatut.OPERATIONNEL);
 
-        assertEquals(EquipmentStatut.OPERATIONNEL, result.getStatut());
+        assertEquals(EquipmentStatut.OPERATIONNEL, result.equipment().getStatut());
+        assertEquals(0, result.cancelledBookingsCount());
         verify(bookingRepository, never())
                 .findByRoomIdAndStatutAndDateDebutAfter(any(), any(), any(LocalDateTime.class));
         verify(bookingRepository, never()).saveAll(any());

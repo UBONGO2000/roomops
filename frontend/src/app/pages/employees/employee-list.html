@@ -1,0 +1,36 @@
+<section class="employee-list" aria-labelledby="employee-list-heading">
+  <h1 id="employee-list-heading">Mes employés</h1>
+
+  @if (errorMessage()) {
+    <p class="employee-list__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p role="status">Chargement des employés…</p>
+  } @else {
+    <div class="employee-list__table-wrapper">
+      <table class="employee-list__table">
+        <thead>
+          <tr>
+            <th scope="col">Nom</th>
+            <th scope="col">Email</th>
+            <th scope="col">Rôle</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (employee of employees(); track employee.id) {
+            <tr>
+              <td>{{ employee.prenom }} {{ employee.nom }}</td>
+              <td>{{ employee.email }}</td>
+              <td>{{ employee.role }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="3">Aucun employé dans cette entreprise.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

@@ -3,10 +3,12 @@ package com.coworking.roomops.backend.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.coworking.roomops.backend.domain.Booking;
+import com.coworking.roomops.backend.domain.BookingStatut;
 import com.coworking.roomops.backend.domain.Company;
 import com.coworking.roomops.backend.domain.Role;
 import com.coworking.roomops.backend.domain.Room;
 import com.coworking.roomops.backend.domain.User;
+import com.coworking.roomops.backend.model.EquipmentStatusUpdateResponse;
 import com.coworking.roomops.backend.model.EquipmentStatut;
 import com.coworking.roomops.backend.model.UpdateEquipmentStatusRequest;
 import com.coworking.roomops.backend.repository.BookingRepository;
@@ -73,19 +75,49 @@ class EquipmentOutageIntegrationTest {
     @Test
     @WithMockUser(roles = "SUPER_ADMIN")
     void declaringPanneCancelsFutureBookingButNotPastOne() {
-        equipmentController.updateEquipmentStatus(
-                equipment.getId(), new UpdateEquipmentStatusRequest(EquipmentStatut.EN_PANNE));
+        // Précondition explicite : sans une réservation future réellement CONFIRMEE, l'assertion
+        // reservationsAnnulees == 1 plus bas passerait pour une mauvaise raison (aucune réservation
+        // à annuler plutôt qu'une réservation correctement annulée).
+        assertEquals(BookingStatut.CONFIRMEE, futureBooking.getStatut());
+
+        EquipmentStatusUpdateResponse response =
+                equipmentController
+                        .updateEquipmentStatus(
+                                equipment.getId(), new UpdateEquipmentStatusRequest(EquipmentStatut.EN_PANNE))
+                        .getBody();
 
         Booking reloadedFuture = bookingRepository.findById(futureBooking.getId()).orElseThrow();
         Booking reloadedPast = bookingRepository.findById(pastBooking.getId()).orElseThrow();
 
-        assertEquals(
-                com.coworking.roomops.backend.domain.BookingStatut.ANNULEE, reloadedFuture.getStatut());
-        assertEquals(
-                com.coworking.roomops.backend.domain.BookingStatut.CONFIRMEE, reloadedPast.getStatut());
+        assertEquals(BookingStatut.ANNULEE, reloadedFuture.getStatut());
+        assertEquals(BookingStatut.CONFIRMEE, reloadedPast.getStatut());
         assertEquals(
                 com.coworking.roomops.backend.domain.EquipmentStatut.EN_PANNE,
                 equipmentRepository.findById(equipment.getId()).orElseThrow().getStatut());
+        assertEquals(1, response.getReservationsAnnulees());
+    }
+
+    @Test
+    @WithMockUser(roles = "SUPER_ADMIN")
+    void declaringPanneOnRoomWithNoFutureBookingsReportsZeroCancellations() {
+        // Salle Gamma n'a aucune réservation créée dans setUp() : le compte doit refléter cette
+        // absence, pas juste retourner une valeur par défaut qu'on ne testerait jamais à zéro.
+        Room roomWithoutBookings =
+                roomRepository.findAll().stream()
+                        .filter(r -> "Salle Gamma".equals(r.getNom()))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException("Seed V3 introuvable : Salle Gamma"));
+        com.coworking.roomops.backend.domain.Equipment equipmentWithoutBookings =
+                equipmentRepository.findByRoomId(roomWithoutBookings.getId()).get(0);
+
+        EquipmentStatusUpdateResponse response =
+                equipmentController
+                        .updateEquipmentStatus(
+                                equipmentWithoutBookings.getId(),
+                                new UpdateEquipmentStatusRequest(EquipmentStatut.EN_PANNE))
+                        .getBody();
+
+        assertEquals(0, response.getReservationsAnnulees());
     }
 
     private Booking newBooking(Room room, User user, LocalDateTime start, LocalDateTime end) {
@@ -95,6 +127,7 @@ class EquipmentOutageIntegrationTest {
         booking.setCompany(user.getCompany());
         booking.setDateDebut(start);
         booking.setDateFin(end);
+        booking.setStatut(BookingStatut.CONFIRMEE);
         return booking;
     }
 }

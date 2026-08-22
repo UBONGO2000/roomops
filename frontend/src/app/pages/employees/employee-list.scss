@@ -1,0 +1,42 @@
+.employee-list {
+  max-width: var(--max-content-width);
+  margin-inline: auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.employee-list h1 {
+  margin: 0 0 1.5rem;
+  font-size: 1.75rem;
+}
+
+.employee-list__error {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--color-error);
+  background: var(--color-surface);
+  color: var(--color-error);
+  margin-bottom: 1.5rem;
+}
+
+.employee-list__table-wrapper {
+  overflow-x: auto;
+}
+
+.employee-list__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.employee-list__table th,
+.employee-list__table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.employee-list__table th {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
