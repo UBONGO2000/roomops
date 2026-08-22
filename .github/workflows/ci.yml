@@ -93,3 +93,34 @@ jobs:
 
       - name: Build frontend Docker image
         run: docker build -t roomops-frontend:ci ./frontend
+
+  publish:
+    needs: [backend, frontend]
+    # Uniquement après un merge sur main, jamais sur une PR : on ne publie que du code déjà
+    # passé par les deux jobs ci-dessus.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # GITHUB_TOKEN n'a pas ce droit par défaut ; sans ce bloc, docker push échoue en 403.
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push backend image
+        # Nom en minuscules : GHCR le rejette sinon (l'organisation GitHub est en majuscules).
+        run: |
+          docker build -t ghcr.io/ubongo2000/roomops-backend:${{ github.sha }} -f backend/Dockerfile .
+          docker tag ghcr.io/ubongo2000/roomops-backend:${{ github.sha }} ghcr.io/ubongo2000/roomops-backend:latest
+          docker push ghcr.io/ubongo2000/roomops-backend:${{ github.sha }}
+          docker push ghcr.io/ubongo2000/roomops-backend:latest
+
+      - name: Build and push frontend image
+        run: |
+          docker build -t ghcr.io/ubongo2000/roomops-frontend:${{ github.sha }} ./frontend
+          docker tag ghcr.io/ubongo2000/roomops-frontend:${{ github.sha }} ghcr.io/ubongo2000/roomops-frontend:latest
+          docker push ghcr.io/ubongo2000/roomops-frontend:${{ github.sha }}
+          docker push ghcr.io/ubongo2000/roomops-frontend:latest

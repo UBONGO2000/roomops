@@ -40,6 +40,9 @@ public class SecurityConfig {
                                 .requestMatchers("/auth/**").permitAll()
                                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                                 .permitAll()
+                                // Healthcheck du conteneur Docker (cf. docker-compose.prod.yml) : doit rester
+                                // accessible sans jeton, seul /health est exposé (cf. application.properties).
+                                .requestMatchers("/actuator/health").permitAll()
                                 .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
