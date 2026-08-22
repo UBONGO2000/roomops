@@ -1,0 +1,115 @@
+.booking-list {
+  max-width: var(--max-content-width);
+  margin-inline: auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.booking-list__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.booking-list__header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.75rem;
+}
+
+.booking-list__scope-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.booking-list__week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.booking-list__week-label {
+  font-weight: 600;
+  min-width: 12rem;
+  text-align: center;
+}
+
+.booking-list__error {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--color-error);
+  background: var(--color-surface);
+  color: var(--color-error);
+  margin-bottom: 1.5rem;
+}
+
+.booking-list__day {
+  margin-bottom: 2rem;
+}
+
+.booking-list__day-heading {
+  font-size: 1.125rem;
+  text-transform: capitalize;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.booking-list__empty {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.booking-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.booking-list__item-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.booking-list__time {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.booking-list__room {
+  font-weight: 600;
+}
+
+.booking-list__badge {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 1rem;
+}
+
+.booking-list__badge--cancelled {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.booking-list__motif {
+  margin: 0.375rem 0 0;
+  color: var(--color-text);
+}
+
+.booking-list__meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}

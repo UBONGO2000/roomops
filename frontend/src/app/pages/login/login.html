@@ -54,16 +54,19 @@
           }
         </mat-form-field>
 
-        <button type="submit" mat-flat-button color="primary" class="login__submit">
-          Se connecter
-        </button>
-
-        @if (submitted() && form.valid) {
-          <p class="login__status" role="status">
-            Formulaire valide. La connexion réelle à l'API (stockage du token, redirection) sera
-            branchée dans un prochain ticket.
-          </p>
+        @if (loginError()) {
+          <p class="login__error" role="alert">{{ loginError() }}</p>
         }
+
+        <button
+          type="submit"
+          mat-flat-button
+          color="primary"
+          class="login__submit"
+          [disabled]="submitting()"
+        >
+          {{ submitting() ? 'Connexion en cours…' : 'Se connecter' }}
+        </button>
       </form>
 
       <p class="login__no-account">

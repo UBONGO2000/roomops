@@ -1,0 +1,95 @@
+<section class="booking-form" aria-labelledby="booking-form-heading">
+  <mat-card appearance="outlined" class="booking-form__card">
+    <mat-card-content>
+      <h1 id="booking-form-heading">Nouvelle réservation</h1>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+        <mat-form-field appearance="outline" class="booking-form__field">
+          <mat-label>Salle</mat-label>
+          <mat-select formControlName="roomId" required>
+            @for (room of rooms(); track room.id) {
+              <mat-option [value]="room.id" [disabled]="!room.estActif || !!room.indisponibilite">
+                {{ room.nom }} ({{ room.buildingName }}, {{ room.capacite }} places)
+                @if (room.indisponibilite) {
+                  — {{ room.indisponibilite }}
+                } @else if (!room.estActif) {
+                  — Salle inactive
+                }
+              </mat-option>
+            }
+          </mat-select>
+          @if (form.controls.roomId.invalid && form.controls.roomId.touched) {
+            <mat-error>Choisissez une salle.</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="booking-form__row">
+          <mat-form-field appearance="outline" class="booking-form__field">
+            <mat-label>Date</mat-label>
+            <input matInput type="date" formControlName="date" required />
+          </mat-form-field>
+
+          <mat-form-field
+            appearance="outline"
+            class="booking-form__field booking-form__field--time"
+          >
+            <mat-label>Début</mat-label>
+            <input matInput type="time" formControlName="heureDebut" required />
+          </mat-form-field>
+
+          <mat-form-field
+            appearance="outline"
+            class="booking-form__field booking-form__field--time"
+          >
+            <mat-label>Fin</mat-label>
+            <input matInput type="time" formControlName="heureFin" required />
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="booking-form__field">
+          <mat-label>Motif (optionnel)</mat-label>
+          <textarea matInput formControlName="motif" rows="2" maxlength="500"></textarea>
+        </mat-form-field>
+
+        <button
+          type="button"
+          mat-stroked-button
+          class="booking-form__check"
+          [disabled]="checkingAvailability()"
+          (click)="checkAvailability()"
+        >
+          {{ checkingAvailability() ? 'Vérification…' : 'Vérifier la disponibilité' }}
+        </button>
+
+        @if (availability(); as result) {
+          <p
+            class="booking-form__availability"
+            [class.booking-form__availability--ok]="result.isAvailable"
+            [class.booking-form__availability--ko]="!result.isAvailable"
+            role="status"
+          >
+            @if (result.isAvailable) {
+              Ce créneau est disponible pour {{ result.roomName }}.
+            } @else {
+              Indisponible : {{ result.reason }}
+            }
+          </p>
+        }
+
+        @if (submitError()) {
+          <p class="booking-form__error" role="alert">{{ submitError() }}</p>
+        }
+
+        <button
+          type="submit"
+          mat-flat-button
+          color="primary"
+          class="booking-form__submit"
+          [disabled]="submitting()"
+        >
+          {{ submitting() ? 'Envoi en cours…' : 'Réserver' }}
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</section>
