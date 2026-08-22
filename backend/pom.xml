@@ -179,6 +179,19 @@
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.8.12</version>
+				<configuration>
+					<!-- api/model : interfaces et DTO générés par openapi-generator-maven-plugin ; domain :
+					     entités JPA ; BackendApplication : point d'entrée Spring Boot. Rien de tout cela n'est
+					     de la logique écrite à la main : les inclure gonflerait le ratio sans le rendre plus
+					     significatif. controller reste inclus : c'est du code écrit, son ratio réel doit
+					     apparaître tel quel. -->
+					<excludes>
+						<exclude>**/api/**</exclude>
+						<exclude>**/model/**</exclude>
+						<exclude>**/domain/**</exclude>
+						<exclude>**/BackendApplication.class</exclude>
+					</excludes>
+				</configuration>
 				<executions>
 					<execution>
 						<id>prepare-agent</id>
@@ -192,6 +205,47 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+					</execution>
+					<execution>
+						<id>check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<!-- Seuil calé sur le niveau constaté (60,1 % hors code généré/entités/
+									     BackendApplication au moment de l'écriture de cette règle), avec 5 points
+									     de marge. Ce n'est pas une attestation de qualité : c'est un cliquet
+									     anti-régression qui ne redescend jamais, même si le ratio réel progresse. -->
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.55</minimum>
+										</limit>
+									</limits>
+								</rule>
+								<rule>
+									<element>CLASS</element>
+									<!-- Plancher par classe sur le cœur métier : CompanyService (55,6 %) et
+									     BookingService (58 %) sont les classes service les plus faibles
+									     constatées et passent avec marge. -->
+									<includes>
+										<include>*.service.*</include>
+									</includes>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.50</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
