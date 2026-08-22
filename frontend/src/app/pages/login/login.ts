@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -7,7 +6,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { AuthService } from '../../core/auth/auth.service';
-import { ApiError } from '../../core/models/error.models';
+import { describeApiError } from '../../core/http/error-message';
 
 @Component({
   selector: 'app-login',
@@ -80,24 +79,8 @@ export class Login {
       },
       error: (error: unknown) => {
         this.submitting.set(false);
-        this.loginError.set(this.describeLoginError(error));
+        this.loginError.set(describeApiError(error, { 401: 'Email ou mot de passe incorrect.' }));
       },
     });
-  }
-
-  private describeLoginError(error: unknown): string {
-    if (error instanceof HttpErrorResponse) {
-      if (error.status === 401) {
-        return 'Email ou mot de passe incorrect.';
-      }
-      if (error.status === 0) {
-        return "Impossible de contacter le serveur. Vérifiez qu'il est démarré.";
-      }
-      const apiError = error.error as ApiError | undefined;
-      if (apiError?.message) {
-        return apiError.message;
-      }
-    }
-    return 'Une erreur inattendue est survenue. Merci de réessayer.';
   }
 }

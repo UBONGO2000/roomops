@@ -32,7 +32,7 @@ public class EquipmentService {
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @Transactional
-    public Equipment updateStatus(Long equipmentId, EquipmentStatut newStatus) {
+    public EquipmentStatusUpdateResult updateStatus(Long equipmentId, EquipmentStatut newStatus) {
         Equipment equipment =
                 equipmentRepository
                         .findById(equipmentId)
@@ -43,18 +43,22 @@ public class EquipmentService {
 
         // @Transactional : le changement de statut et l'annulation en cascade doivent réussir
         // ou échouer ensemble, pas être commités dans deux transactions séparées.
-        if (newStatus == EquipmentStatut.EN_PANNE) {
-            cancelFutureBookingsForRoom(equipment.getRoom().getId());
-        }
+        int cancelledBookingsCount =
+                newStatus == EquipmentStatut.EN_PANNE ? cancelFutureBookingsForRoom(equipment.getRoom().getId()) : 0;
 
-        return equipment;
+        return new EquipmentStatusUpdateResult(equipment, cancelledBookingsCount);
     }
 
-    private void cancelFutureBookingsForRoom(Long roomId) {
+    private int cancelFutureBookingsForRoom(Long roomId) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         List<Booking> affected =
                 bookingRepository.findByRoomIdAndStatutAndDateDebutAfter(roomId, BookingStatut.CONFIRMEE, now);
         affected.forEach(booking -> booking.setStatut(BookingStatut.ANNULEE));
         bookingRepository.saveAll(affected);
+        return affected.size();
     }
+
+    // Porte à la fois l'équipement mis à jour et le nombre de réservations annulées en cascade :
+    // ce dernier n'est jamais persisté, donc il ne peut pas être relu depuis l'entité après coup.
+    public record EquipmentStatusUpdateResult(Equipment equipment, int cancelledBookingsCount) {}
 }

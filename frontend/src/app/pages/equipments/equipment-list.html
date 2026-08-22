@@ -1,0 +1,65 @@
+<section class="equipment-list" aria-labelledby="equipment-list-heading">
+  <h1 id="equipment-list-heading">Équipements</h1>
+  <p class="equipment-list__intro">
+    Déclarer une panne annule automatiquement les réservations futures confirmées de la salle
+    concernée.
+  </p>
+
+  @if (errorMessage()) {
+    <p class="equipment-list__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (infoMessage()) {
+    <p class="equipment-list__info" role="status">{{ infoMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p role="status">Chargement des équipements…</p>
+  } @else {
+    <div class="equipment-list__table-wrapper">
+      <table class="equipment-list__table">
+        <thead>
+          <tr>
+            <th scope="col">Équipement</th>
+            <th scope="col">Salle</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (equipment of equipments(); track equipment.id) {
+            <tr>
+              <td>{{ equipment.type }}</td>
+              <td>{{ equipment.roomName }}</td>
+              <td>
+                <span
+                  class="equipment-list__badge"
+                  [class.equipment-list__badge--panne]="equipment.statut === 'EN_PANNE'"
+                >
+                  {{ equipment.statut === 'EN_PANNE' ? 'En panne' : 'Opérationnel' }}
+                </span>
+              </td>
+              <td>
+                <button
+                  type="button"
+                  mat-stroked-button
+                  [color]="equipment.statut === 'OPERATIONNEL' ? 'warn' : 'primary'"
+                  [disabled]="togglingId() === equipment.id"
+                  (click)="toggleStatus(equipment)"
+                >
+                  @if (togglingId() === equipment.id) {
+                    Mise à jour…
+                  } @else if (equipment.statut === 'OPERATIONNEL') {
+                    Déclarer en panne
+                  } @else {
+                    Remettre en service
+                  }
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

@@ -47,6 +47,13 @@
     <nav class="site-nav" aria-label="Principale">
       @if (currentUser(); as user) {
         <a routerLink="/reservations" mat-button>Mes réservations</a>
+        @if (user.role === 'SUPER_ADMIN') {
+          <a routerLink="/equipements" mat-button>Équipements</a>
+        }
+        @if (user.role === 'MANAGER') {
+          <a routerLink="/employes" mat-button>Mes employés</a>
+        }
+        <a routerLink="/profil" mat-button>Mon profil</a>
         <span class="site-nav__user">{{ user.email }}</span>
         <button type="button" mat-stroked-button (click)="logout()">Se déconnecter</button>
       } @else {

@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -9,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { combineDateAndTime, toDateInputValue } from '../../core/date.util';
-import { ApiError } from '../../core/models/error.models';
+import { describeApiError } from '../../core/http/error-message';
 import { AvailabilityResponse, RoomResponse } from '../../core/models/room.models';
 import { RoomService } from '../../core/rooms/room.service';
 import { BookingService } from '../../core/bookings/booking.service';
@@ -126,33 +125,16 @@ export class BookingForm implements OnInit {
         },
         error: (error: unknown) => {
           this.submitting.set(false);
-          this.submitError.set(this.describeSubmitError(error));
+          this.submitError.set(
+            describeApiError(error, {
+              409: (apiError) =>
+                apiError?.message ??
+                'Cette salle est déjà réservée sur ce créneau. Choisissez un autre horaire.',
+              400: (apiError) => apiError?.message ?? 'Données invalides.',
+              403: "Vous n'êtes pas autorisé à créer de réservation.",
+            }),
+          );
         },
       });
-  }
-
-  private describeSubmitError(error: unknown): string {
-    if (error instanceof HttpErrorResponse) {
-      const apiError = error.error as ApiError | undefined;
-      if (error.status === 409) {
-        return (
-          apiError?.message ??
-          'Cette salle est déjà réservée sur ce créneau. Choisissez un autre horaire.'
-        );
-      }
-      if (error.status === 400) {
-        return apiError?.message ?? 'Données invalides.';
-      }
-      if (error.status === 403) {
-        return "Vous n'êtes pas autorisé à créer de réservation.";
-      }
-      if (error.status === 0) {
-        return "Impossible de contacter le serveur. Vérifiez qu'il est démarré.";
-      }
-      if (apiError?.message) {
-        return apiError.message;
-      }
-    }
-    return 'Une erreur inattendue est survenue. Merci de réessayer.';
   }
 }

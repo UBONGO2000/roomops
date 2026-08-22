@@ -428,7 +428,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EquipmentResponse'
+                $ref: '#/components/schemas/EquipmentStatusUpdateResponse'
         '404':
           description: Équipement non trouvé
 
@@ -835,6 +835,22 @@ components:
       enum:
         - OPERATIONNEL
         - EN_PANNE
+
+    # Réponse dédiée à PUT /equipments/{id}/status : distincte d'EquipmentResponse (utilisée
+    # aussi par GET /equipments en liste) pour ne pas publier un reservationsAnnulees=0 ambigu
+    # sur les éléments de la liste, où ce compte n'a pas de sens.
+    EquipmentStatusUpdateResponse:
+      allOf:
+        - $ref: '#/components/schemas/EquipmentResponse'
+        - type: object
+          properties:
+            reservationsAnnulees:
+              type: integer
+              format: int32
+              description: >-
+                Nombre de réservations futures confirmées annulées par ce changement de statut
+                (0 si aucune, y compris lors d'un retour à OPERATIONNEL).
+              example: 2
 
     # ---- COMPANY ----
     CompanyRequest:

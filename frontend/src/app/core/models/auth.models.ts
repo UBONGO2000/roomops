@@ -1,3 +1,5 @@
+import { BookingResponse } from './booking.models';
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -24,4 +26,10 @@ export interface UserResponse {
   role: Role;
   companyId?: number | null;
   companyName?: string | null;
+}
+
+export interface UserDataExport {
+  user: UserResponse;
+  bookings: BookingResponse[];
+  exportDate: string;
 }

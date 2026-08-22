@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth.guard';
+import { authGuard, roleGuard } from './core/auth/auth.guard';
 import { Home } from './pages/home/home';
 import { Login } from './pages/login/login';
 
@@ -17,5 +17,23 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/bookings/booking-form').then((m) => m.BookingForm),
     title: 'Nouvelle réservation — RoomOps',
+  },
+  {
+    path: 'equipements',
+    canActivate: [authGuard, roleGuard(['SUPER_ADMIN'])],
+    loadComponent: () => import('./pages/equipments/equipment-list').then((m) => m.EquipmentList),
+    title: 'Équipements — RoomOps',
+  },
+  {
+    path: 'profil',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/profile/profile').then((m) => m.Profile),
+    title: 'Mon profil — RoomOps',
+  },
+  {
+    path: 'employes',
+    canActivate: [authGuard, roleGuard(['MANAGER'])],
+    loadComponent: () => import('./pages/employees/employee-list').then((m) => m.EmployeeList),
+    title: 'Mes employés — RoomOps',
   },
 ];
