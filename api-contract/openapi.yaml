@@ -443,6 +443,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AvailabilityResponse'
+        '400':
+          description: Un ou plusieurs equipmentIds n'appartiennent pas à cette salle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Salle non trouvée
 
@@ -793,7 +799,10 @@ components:
           description: |
             Identifiants des équipements requis pour cette réservation ; si fourni, remplace
             intégralement la liste précédemment associée à la réservation. Absent = liste
-            existante inchangée.
+            existante conservée telle quelle, y compris en cas de changement de salle : si un
+            équipement précédemment associé n'appartient plus à la nouvelle salle, la requête
+            est rejetée en 400 (même règle de validation qu'une liste explicitement fournie).
+            Le client doit alors refournir `equipmentIds` pour la nouvelle salle.
         version:
           type: integer
           format: int64

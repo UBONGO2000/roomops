@@ -1,13 +1,17 @@
 package com.coworking.roomops.backend.service;
 
 import com.coworking.roomops.backend.domain.Booking;
+import com.coworking.roomops.backend.domain.BookingEquipment;
 import com.coworking.roomops.backend.domain.BookingStatut;
+import com.coworking.roomops.backend.domain.Equipment;
 import com.coworking.roomops.backend.domain.EquipmentStatut;
 import com.coworking.roomops.backend.domain.Room;
 import com.coworking.roomops.backend.domain.User;
 import com.coworking.roomops.backend.exception.BookingConflictException;
 import com.coworking.roomops.backend.exception.InvalidBookingPeriodException;
+import com.coworking.roomops.backend.exception.InvalidEquipmentSelectionException;
 import com.coworking.roomops.backend.exception.OptimisticLockConflictException;
+import com.coworking.roomops.backend.repository.BookingEquipmentRepository;
 import com.coworking.roomops.backend.repository.BookingRepository;
 import com.coworking.roomops.backend.repository.EquipmentRepository;
 import com.coworking.roomops.backend.repository.RoomRepository;
@@ -16,6 +20,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -33,26 +38,31 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final RoomRepository roomRepository;
     private final EquipmentRepository equipmentRepository;
+    private final BookingEquipmentRepository bookingEquipmentRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public BookingService(
             BookingRepository bookingRepository,
             RoomRepository roomRepository,
             EquipmentRepository equipmentRepository,
+            BookingEquipmentRepository bookingEquipmentRepository,
             CurrentUserProvider currentUserProvider) {
         this.bookingRepository = bookingRepository;
         this.roomRepository = roomRepository;
         this.equipmentRepository = equipmentRepository;
+        this.bookingEquipmentRepository = bookingEquipmentRepository;
         this.currentUserProvider = currentUserProvider;
     }
 
     @PreAuthorize("hasAnyRole('EMPLOYEE','MANAGER')")
-    public Booking createBooking(Long roomId, LocalDateTime start, LocalDateTime end, String motif) {
+    public Booking createBooking(
+            Long roomId, LocalDateTime start, LocalDateTime end, String motif, List<Long> equipmentIds) {
         User actingUser = currentUserProvider.get();
         Room room = getRoomOrThrow(roomId);
 
         requireValidPeriod(start, end);
-        ensureRoomBookable(room);
+        List<Equipment> requestedEquipment = resolveRequestedEquipment(room, equipmentIds);
+        ensureRoomBookable(room, requestedEquipment);
         if (bookingRepository.existsOverlapping(room.getId(), start, end, null)) {
             throw new BookingConflictException("Cette salle est déjà réservée sur le créneau demandé");
         }
@@ -65,7 +75,9 @@ public class BookingService {
         booking.setDateFin(end);
         booking.setMotif(motif);
 
-        return saveOrThrowConflict(booking);
+        Booking saved = saveOrThrowConflict(booking);
+        replaceRequestedEquipment(saved, requestedEquipment);
+        return saved;
     }
 
     public Booking getBooking(Long id) {
@@ -82,7 +94,13 @@ public class BookingService {
     }
 
     public Booking updateBooking(
-            Long id, Long newRoomId, LocalDateTime newStart, LocalDateTime newEnd, String motif, Long expectedVersion) {
+            Long id,
+            Long newRoomId,
+            LocalDateTime newStart,
+            LocalDateTime newEnd,
+            String motif,
+            Long expectedVersion,
+            List<Long> equipmentIds) {
         Booking booking = getBookingOrThrow(id);
         User actingUser = currentUserProvider.get();
         requireCanAccessBooking(actingUser, booking);
@@ -101,7 +119,19 @@ public class BookingService {
         LocalDateTime end = newEnd != null ? newEnd : booking.getDateFin();
         requireValidPeriod(start, end);
 
-        ensureRoomBookable(targetRoom);
+        // equipmentIds absent : on conserve les équipements déjà associés, mais ils doivent
+        // toujours appartenir à la salle cible — resolveRequestedEquipment rejette en 400 si un
+        // équipement conservé n'appartient plus à la nouvelle salle (même règle qu'une liste
+        // explicitement fournie ; le client doit alors la refournir pour la nouvelle salle).
+        List<Long> idsToResolve =
+                equipmentIds != null
+                        ? equipmentIds
+                        : bookingEquipmentRepository.findByBookingId(booking.getId()).stream()
+                                .map(be -> be.getEquipment().getId())
+                                .toList();
+        List<Equipment> requestedEquipment = resolveRequestedEquipment(targetRoom, idsToResolve);
+
+        ensureRoomBookable(targetRoom, requestedEquipment);
         if (bookingRepository.existsOverlapping(targetRoom.getId(), start, end, booking.getId())) {
             throw new BookingConflictException("Cette salle est déjà réservée sur le créneau demandé");
         }
@@ -113,7 +143,9 @@ public class BookingService {
             booking.setMotif(motif);
         }
 
-        return saveOrThrowConflict(booking);
+        Booking saved = saveOrThrowConflict(booking);
+        replaceRequestedEquipment(saved, requestedEquipment);
+        return saved;
     }
 
     public void cancelBooking(Long id) {
@@ -140,16 +172,58 @@ public class BookingService {
         }
     }
 
-    private void ensureRoomBookable(Room room) {
+    // N'importe pas la panne d'un équipement non sollicité par cette réservation (éco-toggle) :
+    // seul un équipement présent dans requestedEquipment bloque, cf. resolveRequestedEquipment.
+    private void ensureRoomBookable(Room room, List<Equipment> requestedEquipment) {
         if (!room.isEstActif()) {
             throw new BookingConflictException("Cette salle n'est pas active");
         }
-        boolean hasPanne =
-                equipmentRepository.findByRoomId(room.getId()).stream()
-                        .anyMatch(equipment -> equipment.getStatut() == EquipmentStatut.EN_PANNE);
-        if (hasPanne) {
+        boolean hasRequestedPanne =
+                requestedEquipment.stream().anyMatch(equipment -> equipment.getStatut() == EquipmentStatut.EN_PANNE);
+        if (hasRequestedPanne) {
             throw new BookingConflictException("Cette salle est indisponible (équipement en panne)");
         }
+    }
+
+    /**
+     * Résout et valide les équipements demandés pour une salle : chaque id doit appartenir à
+     * {@code room}, sinon la requête est rejetée (même règle que RoomService.checkAvailability).
+     */
+    private List<Equipment> resolveRequestedEquipment(Room room, List<Long> equipmentIds) {
+        if (equipmentIds == null || equipmentIds.isEmpty()) {
+            return List.of();
+        }
+        List<Equipment> found = equipmentRepository.findByRoomIdAndIdIn(room.getId(), equipmentIds);
+        if (found.size() != new HashSet<>(equipmentIds).size()) {
+            throw new InvalidEquipmentSelectionException(
+                    "Un ou plusieurs équipements demandés n'appartiennent pas à cette salle");
+        }
+        return found;
+    }
+
+    private void replaceRequestedEquipment(Booking booking, List<Equipment> requestedEquipment) {
+        bookingEquipmentRepository.deleteByBookingId(booking.getId());
+        List<BookingEquipment> rows =
+                requestedEquipment.stream()
+                        .map(
+                                equipment -> {
+                                    BookingEquipment bookingEquipment = new BookingEquipment();
+                                    bookingEquipment.setBooking(booking);
+                                    bookingEquipment.setEquipment(equipment);
+                                    return bookingEquipment;
+                                })
+                        .toList();
+        bookingEquipmentRepository.saveAll(rows);
+    }
+
+    public List<Equipment> getActiveEquipment(Booking booking) {
+        return bookingEquipmentRepository.findByBookingId(booking.getId()).stream()
+                .map(BookingEquipment::getEquipment)
+                .toList();
+    }
+
+    public int countRoomEquipment(Booking booking) {
+        return equipmentRepository.findByRoomId(booking.getRoom().getId()).size();
     }
 
     private void requireValidPeriod(LocalDateTime start, LocalDateTime end) {

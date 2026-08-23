@@ -3,6 +3,7 @@ package com.coworking.roomops.backend.controller;
 import com.coworking.roomops.backend.api.RoomsApi;
 import com.coworking.roomops.backend.domain.Room;
 import com.coworking.roomops.backend.mapper.DateTimeMapper;
+import com.coworking.roomops.backend.mapper.EquipmentMapper;
 import com.coworking.roomops.backend.model.AvailabilityResponse;
 import com.coworking.roomops.backend.model.RoomResponse;
 import com.coworking.roomops.backend.service.RoomAvailability;
@@ -33,10 +34,13 @@ public class RoomController implements RoomsApi {
 
     @Override
     public ResponseEntity<AvailabilityResponse> checkRoomAvailability(
-            Long roomId, OffsetDateTime dateDebut, OffsetDateTime dateFin) {
+            Long roomId, OffsetDateTime dateDebut, OffsetDateTime dateFin, List<Long> equipmentIds) {
         RoomAvailability availability =
                 roomService.checkAvailability(
-                        roomId, DateTimeMapper.toUtcLocalDateTime(dateDebut), DateTimeMapper.toUtcLocalDateTime(dateFin));
+                        roomId,
+                        DateTimeMapper.toUtcLocalDateTime(dateDebut),
+                        DateTimeMapper.toUtcLocalDateTime(dateFin),
+                        equipmentIds);
 
         AvailabilityResponse response =
                 new AvailabilityResponse()
@@ -57,6 +61,7 @@ public class RoomController implements RoomsApi {
                 .buildingId(room.getBuilding().getId())
                 .buildingName(room.getBuilding().getNom())
                 .estActif(room.isEstActif())
-                .indisponibilite(roomService.panneReason(room));
+                .indisponibilite(roomService.panneReason(room))
+                .equipements(roomService.equipmentsOf(room).stream().map(EquipmentMapper::toResponse).toList());
     }
 }

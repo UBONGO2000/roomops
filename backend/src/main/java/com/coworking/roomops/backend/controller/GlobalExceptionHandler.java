@@ -3,6 +3,7 @@ package com.coworking.roomops.backend.controller;
 import com.coworking.roomops.backend.exception.BookingConflictException;
 import com.coworking.roomops.backend.exception.EmployeeHasBookingsException;
 import com.coworking.roomops.backend.exception.InvalidBookingPeriodException;
+import com.coworking.roomops.backend.exception.InvalidEquipmentSelectionException;
 import com.coworking.roomops.backend.exception.OptimisticLockConflictException;
 import com.coworking.roomops.backend.model.ErrorResponse;
 import com.coworking.roomops.backend.model.ErrorResponseDetailsInner;
@@ -63,6 +64,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidBookingPeriodException.class)
     public ResponseEntity<ErrorResponse> handleInvalidBookingPeriod(InvalidBookingPeriodException ex) {
         return ResponseEntity.badRequest().body(errorBody("INVALID_PERIOD", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidEquipmentSelectionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidEquipmentSelection(InvalidEquipmentSelectionException ex) {
+        return ResponseEntity.badRequest().body(errorBody("INVALID_EQUIPMENT_SELECTION", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

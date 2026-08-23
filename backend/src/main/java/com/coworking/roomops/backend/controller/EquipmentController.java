@@ -3,6 +3,7 @@ package com.coworking.roomops.backend.controller;
 import com.coworking.roomops.backend.api.EquipmentsApi;
 import com.coworking.roomops.backend.domain.Equipment;
 import com.coworking.roomops.backend.domain.EquipmentStatut;
+import com.coworking.roomops.backend.mapper.EquipmentMapper;
 import com.coworking.roomops.backend.model.EquipmentResponse;
 import com.coworking.roomops.backend.model.EquipmentStatusUpdateResponse;
 import com.coworking.roomops.backend.model.UpdateEquipmentStatusRequest;
@@ -23,7 +24,7 @@ public class EquipmentController implements EquipmentsApi {
 
     @Override
     public ResponseEntity<List<EquipmentResponse>> listEquipments() {
-        return ResponseEntity.ok(equipmentService.listEquipments().stream().map(this::toResponse).toList());
+        return ResponseEntity.ok(equipmentService.listEquipments().stream().map(EquipmentMapper::toResponse).toList());
     }
 
     @Override
@@ -43,14 +44,5 @@ public class EquipmentController implements EquipmentsApi {
                                         equipment.getStatut().name()))
                         .reservationsAnnulees(result.cancelledBookingsCount());
         return ResponseEntity.ok(body);
-    }
-
-    private EquipmentResponse toResponse(Equipment equipment) {
-        return new EquipmentResponse()
-                .id(equipment.getId())
-                .type(equipment.getType())
-                .roomId(equipment.getRoom().getId())
-                .roomName(equipment.getRoom().getNom())
-                .statut(com.coworking.roomops.backend.model.EquipmentStatut.valueOf(equipment.getStatut().name()));
     }
 }

@@ -31,13 +31,14 @@ public class BookingController implements BookingsApi {
                         bookingRequest.getRoomId(),
                         DateTimeMapper.toUtcLocalDateTime(bookingRequest.getDateDebut()),
                         DateTimeMapper.toUtcLocalDateTime(bookingRequest.getDateFin()),
-                        bookingRequest.getMotif());
-        return ResponseEntity.status(HttpStatus.CREATED).body(BookingMapper.toResponse(saved));
+                        bookingRequest.getMotif(),
+                        bookingRequest.getEquipmentIds());
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(saved));
     }
 
     @Override
     public ResponseEntity<BookingResponse> getBookingById(Long id) {
-        return ResponseEntity.ok(BookingMapper.toResponse(bookingService.getBooking(id)));
+        return ResponseEntity.ok(toResponse(bookingService.getBooking(id)));
     }
 
     @Override
@@ -61,7 +62,7 @@ public class BookingController implements BookingsApi {
 
         BookingPageResponse response =
                 new BookingPageResponse()
-                        .content(result.getContent().stream().map(BookingMapper::toResponse).toList())
+                        .content(result.getContent().stream().map(this::toResponse).toList())
                         .totalElements(result.getTotalElements())
                         .totalPages(result.getTotalPages())
                         .number(result.getNumber())
@@ -82,13 +83,19 @@ public class BookingController implements BookingsApi {
                                 ? DateTimeMapper.toUtcLocalDateTime(bookingUpdateRequest.getDateFin())
                                 : null,
                         bookingUpdateRequest.getMotif(),
-                        bookingUpdateRequest.getVersion());
-        return ResponseEntity.ok(BookingMapper.toResponse(saved));
+                        bookingUpdateRequest.getVersion(),
+                        bookingUpdateRequest.getEquipmentIds());
+        return ResponseEntity.ok(toResponse(saved));
     }
 
     @Override
     public ResponseEntity<Void> cancelBooking(Long id) {
         bookingService.cancelBooking(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private BookingResponse toResponse(Booking booking) {
+        return BookingMapper.toResponse(
+                booking, bookingService.getActiveEquipment(booking), bookingService.countRoomEquipment(booking));
     }
 }
