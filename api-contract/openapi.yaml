@@ -286,6 +286,71 @@ paths:
         '404':
           description: Réservation non trouvée
 
+  /bookings/{id}/ical:
+    get:
+      tags:
+        - Bookings
+      summary: Exporter une réservation au format iCalendar
+      description: |
+        Génère un fichier .ics (RFC 5545) pour cette réservation. Le VEVENT inclut une
+        propriété personnalisée `X-ROOMOPS-ROOM-ID` référençant la salle, afin de permettre
+        un ré-import ultérieur via `POST /bookings/import-ical`.
+      operationId: exportBookingIcal
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Fichier iCalendar généré
+          content:
+            text/calendar:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Réservation non trouvée
+
+  /bookings/import-ical:
+    post:
+      tags:
+        - Bookings
+      summary: Importer une réservation depuis un fichier iCalendar
+      description: |
+        Recrée une réservation à partir d'un fichier .ics précédemment exporté par
+        `GET /bookings/{id}/ical`. Seuls les fichiers portant la propriété personnalisée
+        `X-ROOMOPS-ROOM-ID` sont acceptés : un fichier iCalendar générique ne référence aucune
+        salle interne exploitable.
+      operationId: importBookingIcal
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          text/calendar:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Réservation recréée depuis le fichier importé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+        '400':
+          description: Fichier invalide ou propriété X-ROOMOPS-ROOM-ID absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflit de créneau ou salle indisponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ============================
   # SALLES
   # ============================
@@ -360,6 +425,17 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: equipmentIds
+          in: query
+          schema:
+            type: array
+            items:
+              type: integer
+              format: int64
+          description: |
+            Identifiants des équipements requis pour l'usage prévu. Si fourni, la disponibilité
+            applique les mêmes règles que la création de réservation : un équipement en panne
+            ne bloque la salle que s'il est demandé ici.
       responses:
         '200':
           description: Disponibilité vérifiée
@@ -682,6 +758,15 @@ components:
           maxLength: 500
           description: Motif (optionnel)
           example: "Réunion d'équipe projet"
+        equipmentIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: |
+            Identifiants des équipements de la salle réellement nécessaires pour cette
+            réservation. Liste vide ou absente = aucun équipement requis ; un équipement en
+            panne dans la salle ne bloque alors plus la réservation s'il n'est pas demandé.
 
     BookingUpdateRequest:
       type: object
@@ -700,6 +785,15 @@ components:
         motif:
           type: string
           maxLength: 500
+        equipmentIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: |
+            Identifiants des équipements requis pour cette réservation ; si fourni, remplace
+            intégralement la liste précédemment associée à la réservation. Absent = liste
+            existante inchangée.
         version:
           type: integer
           format: int64
@@ -734,6 +828,19 @@ components:
           $ref: '#/components/schemas/BookingStatut'
         motif:
           type: string
+        equipmentsActives:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquipmentResponse'
+          description: Équipements de la salle réellement demandés pour cette réservation.
+        ecoScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: |
+            Pourcentage des équipements de la salle NON activés pour cette réservation. Vaut
+            100 par convention si la salle ne possède aucun équipement.
+          example: 75
         version:
           type: integer
           format: int64
@@ -789,6 +896,13 @@ components:
           nullable: true
           description: "Raison si la salle est bloquée (ex: 'Panne projecteur')"
           example: null
+        equipements:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquipmentResponse'
+          description: |
+            Équipements disponibles dans cette salle, pour permettre au frontend de proposer
+            le choix éco-responsable.
 
     AvailabilityResponse:
       type: object
