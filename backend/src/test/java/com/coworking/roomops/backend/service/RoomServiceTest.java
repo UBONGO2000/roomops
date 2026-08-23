@@ -50,25 +50,37 @@ class RoomServiceTest {
     @Test
     void checkAvailability_availableWhenNoPanneAndNoOverlap() {
         when(roomRepository.findById(1L)).thenReturn(Optional.of(room));
-        when(equipmentRepository.findByRoomId(1L)).thenReturn(List.of());
         when(bookingRepository.existsOverlapping(1L, start, end, null)).thenReturn(false);
 
-        RoomAvailability availability = roomService.checkAvailability(1L, start, end);
+        RoomAvailability availability = roomService.checkAvailability(1L, start, end, null);
 
         assertTrue(availability.available());
         assertNull(availability.reason());
     }
 
     @Test
-    void checkAvailability_unavailableWhenEquipmentBroken() {
+    void checkAvailability_availableWhenEquipmentBrokenButNotRequested() {
+        // Éco-toggle : sans equipmentIds, aucun équipement n'est requis, donc une panne
+        // ailleurs dans la salle ne bloque plus (contrairement au comportement historique).
+        when(roomRepository.findById(1L)).thenReturn(Optional.of(room));
+        when(bookingRepository.existsOverlapping(1L, start, end, null)).thenReturn(false);
+
+        RoomAvailability availability = roomService.checkAvailability(1L, start, end, null);
+
+        assertTrue(availability.available());
+    }
+
+    @Test
+    void checkAvailability_unavailableWhenRequestedEquipmentBroken() {
         Equipment broken = new Equipment();
+        broken.setId(50L);
         broken.setType("Visioconférence");
         broken.setStatut(EquipmentStatut.EN_PANNE);
 
         when(roomRepository.findById(1L)).thenReturn(Optional.of(room));
-        when(equipmentRepository.findByRoomId(1L)).thenReturn(List.of(broken));
+        when(equipmentRepository.findByRoomIdAndIdIn(1L, List.of(50L))).thenReturn(List.of(broken));
 
-        RoomAvailability availability = roomService.checkAvailability(1L, start, end);
+        RoomAvailability availability = roomService.checkAvailability(1L, start, end, List.of(50L));
 
         assertFalse(availability.available());
         assertEquals("Panne : Visioconférence", availability.reason());
@@ -78,12 +90,21 @@ class RoomServiceTest {
     }
 
     @Test
+    void checkAvailability_rejectsEquipmentIdNotInRoom() {
+        when(roomRepository.findById(1L)).thenReturn(Optional.of(room));
+        when(equipmentRepository.findByRoomIdAndIdIn(1L, List.of(999L))).thenReturn(List.of());
+
+        assertThrows(
+                com.coworking.roomops.backend.exception.InvalidEquipmentSelectionException.class,
+                () -> roomService.checkAvailability(1L, start, end, List.of(999L)));
+    }
+
+    @Test
     void checkAvailability_unavailableWhenOverlapping() {
         when(roomRepository.findById(1L)).thenReturn(Optional.of(room));
-        when(equipmentRepository.findByRoomId(1L)).thenReturn(List.of());
         when(bookingRepository.existsOverlapping(1L, start, end, null)).thenReturn(true);
 
-        RoomAvailability availability = roomService.checkAvailability(1L, start, end);
+        RoomAvailability availability = roomService.checkAvailability(1L, start, end, null);
 
         assertFalse(availability.available());
         assertEquals("Créneau déjà réservé", availability.reason());

@@ -18,7 +18,9 @@ import com.coworking.roomops.backend.domain.Room;
 import com.coworking.roomops.backend.domain.User;
 import com.coworking.roomops.backend.exception.BookingConflictException;
 import com.coworking.roomops.backend.exception.InvalidBookingPeriodException;
+import com.coworking.roomops.backend.exception.InvalidEquipmentSelectionException;
 import com.coworking.roomops.backend.exception.OptimisticLockConflictException;
+import com.coworking.roomops.backend.repository.BookingEquipmentRepository;
 import com.coworking.roomops.backend.repository.BookingRepository;
 import com.coworking.roomops.backend.repository.EquipmentRepository;
 import com.coworking.roomops.backend.repository.RoomRepository;
@@ -46,6 +48,7 @@ class BookingServiceTest {
     @Mock private BookingRepository bookingRepository;
     @Mock private RoomRepository roomRepository;
     @Mock private EquipmentRepository equipmentRepository;
+    @Mock private BookingEquipmentRepository bookingEquipmentRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
     @InjectMocks private BookingService bookingService;
@@ -75,11 +78,10 @@ class BookingServiceTest {
     void createBooking_success_whenRoomFreeAndBookable() {
         when(currentUserProvider.get()).thenReturn(employee);
         when(roomRepository.findById(room.getId())).thenReturn(Optional.of(room));
-        when(equipmentRepository.findByRoomId(room.getId())).thenReturn(List.of());
         when(bookingRepository.existsOverlapping(room.getId(), start, end, null)).thenReturn(false);
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Booking result = bookingService.createBooking(room.getId(), start, end, "Réunion");
+        Booking result = bookingService.createBooking(room.getId(), start, end, "Réunion", null);
 
         assertEquals(employee, result.getUser());
         assertEquals(company, result.getCompany());
@@ -91,10 +93,10 @@ class BookingServiceTest {
     void createBooking_rejectsOverlappingSlot() {
         when(currentUserProvider.get()).thenReturn(employee);
         when(roomRepository.findById(room.getId())).thenReturn(Optional.of(room));
-        when(equipmentRepository.findByRoomId(room.getId())).thenReturn(List.of());
         when(bookingRepository.existsOverlapping(room.getId(), start, end, null)).thenReturn(true);
 
-        assertThrows(BookingConflictException.class, () -> bookingService.createBooking(room.getId(), start, end, null));
+        assertThrows(
+                BookingConflictException.class, () -> bookingService.createBooking(room.getId(), start, end, null, null));
         verify(bookingRepository, never()).save(any());
     }
 
@@ -104,21 +106,52 @@ class BookingServiceTest {
         when(currentUserProvider.get()).thenReturn(employee);
         when(roomRepository.findById(room.getId())).thenReturn(Optional.of(room));
 
-        assertThrows(BookingConflictException.class, () -> bookingService.createBooking(room.getId(), start, end, null));
+        assertThrows(
+                BookingConflictException.class, () -> bookingService.createBooking(room.getId(), start, end, null, null));
         verify(bookingRepository, never()).existsOverlapping(anyLong(), any(), any(), any());
     }
 
     @Test
-    void createBooking_rejectsRoomWithBrokenEquipment() {
+    void createBooking_rejectsWhenRequestedEquipmentBroken() {
         Equipment brokenProjector = new Equipment();
+        brokenProjector.setId(77L);
         brokenProjector.setType("Projecteur");
         brokenProjector.setStatut(EquipmentStatut.EN_PANNE);
 
         when(currentUserProvider.get()).thenReturn(employee);
         when(roomRepository.findById(room.getId())).thenReturn(Optional.of(room));
-        when(equipmentRepository.findByRoomId(room.getId())).thenReturn(List.of(brokenProjector));
+        when(equipmentRepository.findByRoomIdAndIdIn(room.getId(), List.of(77L))).thenReturn(List.of(brokenProjector));
 
-        assertThrows(BookingConflictException.class, () -> bookingService.createBooking(room.getId(), start, end, null));
+        assertThrows(
+                BookingConflictException.class,
+                () -> bookingService.createBooking(room.getId(), start, end, null, List.of(77L)));
+    }
+
+    @Test
+    void createBooking_succeedsWhenBrokenEquipmentNotRequested() {
+        // Éco-toggle : un équipement en panne ailleurs dans la salle, mais non demandé, ne
+        // bloque plus la réservation (contrairement au comportement historique).
+        when(currentUserProvider.get()).thenReturn(employee);
+        when(roomRepository.findById(room.getId())).thenReturn(Optional.of(room));
+        when(bookingRepository.existsOverlapping(room.getId(), start, end, null)).thenReturn(false);
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Booking result = bookingService.createBooking(room.getId(), start, end, "Réunion", null);
+
+        assertEquals(room, result.getRoom());
+        verify(equipmentRepository, never()).findByRoomIdAndIdIn(any(), any());
+    }
+
+    @Test
+    void createBooking_rejectsEquipmentIdNotInRoom() {
+        when(currentUserProvider.get()).thenReturn(employee);
+        when(roomRepository.findById(room.getId())).thenReturn(Optional.of(room));
+        when(equipmentRepository.findByRoomIdAndIdIn(room.getId(), List.of(999L))).thenReturn(List.of());
+
+        assertThrows(
+                InvalidEquipmentSelectionException.class,
+                () -> bookingService.createBooking(room.getId(), start, end, null, List.of(999L)));
+        verify(bookingRepository, never()).save(any());
     }
 
     @Test
@@ -128,7 +161,7 @@ class BookingServiceTest {
 
         assertThrows(
                 InvalidBookingPeriodException.class,
-                () -> bookingService.createBooking(room.getId(), end, start, null));
+                () -> bookingService.createBooking(room.getId(), end, start, null, null));
         verify(equipmentRepository, never()).findByRoomId(any());
     }
 
@@ -138,12 +171,12 @@ class BookingServiceTest {
         // l'insertion : la contrainte EXCLUDE de la base rejette l'INSERT.
         when(currentUserProvider.get()).thenReturn(employee);
         when(roomRepository.findById(room.getId())).thenReturn(Optional.of(room));
-        when(equipmentRepository.findByRoomId(room.getId())).thenReturn(List.of());
         when(bookingRepository.existsOverlapping(room.getId(), start, end, null)).thenReturn(false);
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
         doThrow(new DataIntegrityViolationException("exclusion constraint")).when(bookingRepository).flush();
 
-        assertThrows(BookingConflictException.class, () -> bookingService.createBooking(room.getId(), start, end, null));
+        assertThrows(
+                BookingConflictException.class, () -> bookingService.createBooking(room.getId(), start, end, null, null));
     }
 
     @Test
@@ -197,7 +230,7 @@ class BookingServiceTest {
 
         assertThrows(
                 OptimisticLockConflictException.class,
-                () -> bookingService.updateBooking(5L, null, null, null, null, 4L));
+                () -> bookingService.updateBooking(5L, null, null, null, null, 4L, null));
         verify(bookingRepository, never()).save(any());
     }
 }
