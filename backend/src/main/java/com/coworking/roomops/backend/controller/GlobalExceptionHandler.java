@@ -4,6 +4,7 @@ import com.coworking.roomops.backend.exception.BookingConflictException;
 import com.coworking.roomops.backend.exception.EmployeeHasBookingsException;
 import com.coworking.roomops.backend.exception.InvalidBookingPeriodException;
 import com.coworking.roomops.backend.exception.InvalidEquipmentSelectionException;
+import com.coworking.roomops.backend.exception.InvalidIcalFileException;
 import com.coworking.roomops.backend.exception.OptimisticLockConflictException;
 import com.coworking.roomops.backend.model.ErrorResponse;
 import com.coworking.roomops.backend.model.ErrorResponseDetailsInner;
@@ -69,6 +70,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidEquipmentSelectionException.class)
     public ResponseEntity<ErrorResponse> handleInvalidEquipmentSelection(InvalidEquipmentSelectionException ex) {
         return ResponseEntity.badRequest().body(errorBody("INVALID_EQUIPMENT_SELECTION", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidIcalFileException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidIcalFile(InvalidIcalFileException ex) {
+        return ResponseEntity.badRequest().body(errorBody("INVALID_ICAL_FILE", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
