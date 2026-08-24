@@ -31,6 +31,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BookingService {
@@ -54,7 +55,11 @@ public class BookingService {
         this.currentUserProvider = currentUserProvider;
     }
 
+    // Englobe save+flush de la réservation et le remplacement de ses équipements associés
+    // (booking_equipment) dans une seule transaction : sans elle, un échec entre ces deux étapes
+    // laisserait une réservation persistée sans ses équipements.
     @PreAuthorize("hasAnyRole('EMPLOYEE','MANAGER')")
+    @Transactional
     public Booking createBooking(
             Long roomId, LocalDateTime start, LocalDateTime end, String motif, List<Long> equipmentIds) {
         User actingUser = currentUserProvider.get();
@@ -93,6 +98,9 @@ public class BookingService {
         return bookingRepository.findAll(spec, PageRequest.of(page, size, Sort.by("dateDebut").descending()));
     }
 
+    // Même raison que sur createBooking : save+flush de la réservation et remplacement de
+    // booking_equipment doivent réussir ou échouer ensemble.
+    @Transactional
     public Booking updateBooking(
             Long id,
             Long newRoomId,
