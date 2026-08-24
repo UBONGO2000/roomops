@@ -103,6 +103,14 @@
   border: 1px solid var(--color-border);
 }
 
+/* Couleur dédiée (non issue du thème Material azure/blue, cf. styles.scss) : contraste vérifié
+   #8a4b00 sur --color-surface (proche du blanc) ≈ 6.8:1, au-dessus du minimum AA (4.5:1). */
+.booking-list__badge--outage {
+  background: var(--color-surface);
+  color: #8a4b00;
+  border: 1px solid #c77700;
+}
+
 .booking-list__motif {
   margin: 0.375rem 0 0;
   color: var(--color-text);

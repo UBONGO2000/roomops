@@ -10,9 +10,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.coworking.roomops.backend.domain.Booking;
+import com.coworking.roomops.backend.domain.BookingStatut;
 import com.coworking.roomops.backend.domain.Company;
 import com.coworking.roomops.backend.domain.Equipment;
 import com.coworking.roomops.backend.domain.EquipmentStatut;
+import com.coworking.roomops.backend.domain.RaisonAnnulation;
 import com.coworking.roomops.backend.domain.Role;
 import com.coworking.roomops.backend.domain.Room;
 import com.coworking.roomops.backend.domain.User;
@@ -212,6 +214,24 @@ class BookingServiceTest {
         when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
 
         assertEquals(booking, bookingService.getBooking(5L));
+    }
+
+    @Test
+    void cancelBooking_marksRaisonAnnulationAsManuelle() {
+        Booking booking = new Booking();
+        booking.setId(5L);
+        booking.setUser(employee);
+        booking.setCompany(company);
+        booking.setStatut(BookingStatut.CONFIRMEE);
+
+        when(currentUserProvider.get()).thenReturn(employee);
+        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
+
+        bookingService.cancelBooking(5L);
+
+        assertEquals(BookingStatut.ANNULEE, booking.getStatut());
+        assertEquals(RaisonAnnulation.MANUELLE, booking.getRaisonAnnulation());
+        verify(bookingRepository).save(booking);
     }
 
     @Test

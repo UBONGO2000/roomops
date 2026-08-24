@@ -32,8 +32,8 @@ export const routes: Routes = [
   },
   {
     path: 'employes',
-    canActivate: [authGuard, roleGuard(['MANAGER'])],
+    canActivate: [authGuard, roleGuard(['MANAGER', 'SUPER_ADMIN'])],
     loadComponent: () => import('./pages/employees/employee-list').then((m) => m.EmployeeList),
-    title: 'Mes employés — RoomOps',
+    title: 'Employés — RoomOps',
   },
 ];

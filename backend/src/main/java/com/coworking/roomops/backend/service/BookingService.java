@@ -5,6 +5,7 @@ import com.coworking.roomops.backend.domain.BookingEquipment;
 import com.coworking.roomops.backend.domain.BookingStatut;
 import com.coworking.roomops.backend.domain.Equipment;
 import com.coworking.roomops.backend.domain.EquipmentStatut;
+import com.coworking.roomops.backend.domain.RaisonAnnulation;
 import com.coworking.roomops.backend.domain.Room;
 import com.coworking.roomops.backend.domain.User;
 import com.coworking.roomops.backend.exception.BookingConflictException;
@@ -161,6 +162,7 @@ public class BookingService {
         requireCanAccessBooking(currentUserProvider.get(), booking);
 
         booking.setStatut(BookingStatut.ANNULEE);
+        booking.setRaisonAnnulation(RaisonAnnulation.MANUELLE);
         bookingRepository.save(booking);
     }
 

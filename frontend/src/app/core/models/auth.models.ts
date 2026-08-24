@@ -28,6 +28,15 @@ export interface UserResponse {
   companyName?: string | null;
 }
 
+// Rôle par défaut EMPLOYEE côté backend si omis (cf. api-contract/openapi.yaml CreateUserRequest).
+export interface CreateEmployeeRequest {
+  email: string;
+  password: string;
+  nom: string;
+  prenom: string;
+  role?: 'EMPLOYEE' | 'MANAGER';
+}
+
 export interface UserDataExport {
   user: UserResponse;
   bookings: BookingResponse[];

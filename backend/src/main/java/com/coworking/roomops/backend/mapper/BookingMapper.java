@@ -28,6 +28,11 @@ public final class BookingMapper {
                 .dateFin(DateTimeMapper.toOffsetDateTime(booking.getDateFin()))
                 .statut(com.coworking.roomops.backend.model.BookingStatut.valueOf(booking.getStatut().name()))
                 .motif(booking.getMotif())
+                .raisonAnnulation(
+                        booking.getRaisonAnnulation() != null
+                                ? com.coworking.roomops.backend.model.RaisonAnnulation.valueOf(
+                                        booking.getRaisonAnnulation().name())
+                                : null)
                 .equipmentsActives(activeEquipment.stream().map(EquipmentMapper::toResponse).toList())
                 .ecoScore(computeEcoScore(activeEquipment.size(), totalRoomEquipmentCount))
                 .version(booking.getVersion());
