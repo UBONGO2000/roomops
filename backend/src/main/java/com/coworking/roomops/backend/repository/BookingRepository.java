@@ -29,10 +29,21 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
             @Param("dateFin") LocalDateTime dateFin,
             @Param("excludeBookingId") Long excludeBookingId);
 
-    java.util.List<Booking> findByRoomIdAndStatutAndDateDebutAfter(
-            Long roomId,
-            com.coworking.roomops.backend.domain.BookingStatut statut,
-            LocalDateTime dateDebut);
+    /**
+     * Réservations CONFIRMEE futures d'une salle qui sollicitent réellement un équipement donné
+     * (table de jonction booking_equipment) : utilisé pour l'annulation en cascade lors d'un
+     * passage EN_PANNE, afin de ne pas annuler une réservation qui n'a jamais demandé
+     * l'équipement fautif (même règle éco-toggle que BookingService.ensureRoomBookable /
+     * RoomService.checkAvailability).
+     */
+    @Query(
+            "SELECT DISTINCT b FROM Booking b JOIN BookingEquipment be ON be.booking = b "
+                    + "WHERE b.room.id = :roomId "
+                    + "AND b.statut = com.coworking.roomops.backend.domain.BookingStatut.CONFIRMEE "
+                    + "AND b.dateDebut > :now "
+                    + "AND be.equipment.id = :equipmentId")
+    java.util.List<Booking> findByRoomIdAndStatutAndDateDebutAfterAndEquipmentId(
+            @Param("roomId") Long roomId, @Param("now") LocalDateTime now, @Param("equipmentId") Long equipmentId);
 
     java.util.List<Booking> findByUserId(Long userId);
 }

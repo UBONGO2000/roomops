@@ -44,12 +44,13 @@
               (selectionChange)="onRoomChange($event.value)"
             >
               @for (room of rooms(); track room.id) {
-                <mat-option [value]="room.id" [disabled]="!room.estActif || !!room.indisponibilite">
+                <mat-option [value]="room.id" [disabled]="!room.estActif">
                   {{ room.nom }} ({{ room.buildingName }}, {{ room.capacite }} places)
-                  @if (room.indisponibilite) {
-                    — {{ room.indisponibilite }}
-                  } @else if (!room.estActif) {
+                  @if (!room.estActif) {
                     — Salle inactive
+                  } @else if (room.indisponibilite) {
+                    — {{ room.indisponibilite }} (n'empêche pas la réservation si vous n'avez pas
+                    besoin de cet équipement)
                   }
                 </mat-option>
               }

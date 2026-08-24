@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.coworking.roomops.backend.domain.Booking;
+import com.coworking.roomops.backend.domain.BookingEquipment;
 import com.coworking.roomops.backend.domain.BookingStatut;
 import com.coworking.roomops.backend.domain.Company;
 import com.coworking.roomops.backend.domain.RaisonAnnulation;
@@ -13,6 +14,7 @@ import com.coworking.roomops.backend.domain.User;
 import com.coworking.roomops.backend.model.EquipmentStatusUpdateResponse;
 import com.coworking.roomops.backend.model.EquipmentStatut;
 import com.coworking.roomops.backend.model.UpdateEquipmentStatusRequest;
+import com.coworking.roomops.backend.repository.BookingEquipmentRepository;
 import com.coworking.roomops.backend.repository.BookingRepository;
 import com.coworking.roomops.backend.repository.CompanyRepository;
 import com.coworking.roomops.backend.repository.EquipmentRepository;
@@ -39,6 +41,7 @@ class EquipmentOutageIntegrationTest {
     @Autowired private EquipmentController equipmentController;
     @Autowired private EquipmentRepository equipmentRepository;
     @Autowired private BookingRepository bookingRepository;
+    @Autowired private BookingEquipmentRepository bookingEquipmentRepository;
     @Autowired private RoomRepository roomRepository;
     @Autowired private CompanyRepository companyRepository;
     @Autowired private UserRepository userRepository;
@@ -72,6 +75,12 @@ class EquipmentOutageIntegrationTest {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         futureBooking = bookingRepository.saveAndFlush(newBooking(room, employee, now.plusDays(1), now.plusDays(1).plusHours(1)));
         pastBooking = bookingRepository.saveAndFlush(newBooking(room, employee, now.minusDays(1), now.minusDays(1).plusHours(1)));
+
+        // Les deux réservations sollicitent l'équipement testé : ce test vise à isoler le filtre
+        // "future vs passée", pas le filtre "équipement réellement demandé" (couvert séparément
+        // par declaringPanneDoesNotCancelBookingNotRequestingTheBrokenEquipment).
+        linkEquipment(futureBooking, equipment);
+        linkEquipment(pastBooking, equipment);
     }
 
     @Test
@@ -103,6 +112,22 @@ class EquipmentOutageIntegrationTest {
 
     @Test
     @WithMockUser(roles = "SUPER_ADMIN")
+    void declaringPanneDoesNotCancelBookingNotRequestingTheBrokenEquipment() {
+        // Éco-toggle : une réservation future de la même salle qui n'a jamais sollicité
+        // l'équipement fautif ne doit pas être annulée par la cascade, cohérent avec
+        // BookingService.ensureRoomBookable qui ne l'aurait pas bloquée à la création.
+        bookingEquipmentRepository.deleteByBookingId(futureBooking.getId());
+
+        equipmentController.updateEquipmentStatus(
+                equipment.getId(), new UpdateEquipmentStatusRequest(EquipmentStatut.EN_PANNE));
+
+        Booking reloadedFuture = bookingRepository.findById(futureBooking.getId()).orElseThrow();
+        assertEquals(BookingStatut.CONFIRMEE, reloadedFuture.getStatut());
+        assertNull(reloadedFuture.getRaisonAnnulation());
+    }
+
+    @Test
+    @WithMockUser(roles = "SUPER_ADMIN")
     void declaringPanneOnRoomWithNoFutureBookingsReportsZeroCancellations() {
         // Salle Gamma n'a aucune réservation créée dans setUp() : le compte doit refléter cette
         // absence, pas juste retourner une valeur par défaut qu'on ne testerait jamais à zéro.
@@ -122,6 +147,13 @@ class EquipmentOutageIntegrationTest {
                         .getBody();
 
         assertEquals(0, response.getReservationsAnnulees());
+    }
+
+    private void linkEquipment(Booking booking, com.coworking.roomops.backend.domain.Equipment usedEquipment) {
+        BookingEquipment bookingEquipment = new BookingEquipment();
+        bookingEquipment.setBooking(booking);
+        bookingEquipment.setEquipment(usedEquipment);
+        bookingEquipmentRepository.saveAndFlush(bookingEquipment);
     }
 
     private Booking newBooking(Room room, User user, LocalDateTime start, LocalDateTime end) {
