@@ -45,15 +45,20 @@ public class EquipmentService {
         // @Transactional : le changement de statut et l'annulation en cascade doivent réussir
         // ou échouer ensemble, pas être commités dans deux transactions séparées.
         int cancelledBookingsCount =
-                newStatus == EquipmentStatut.EN_PANNE ? cancelFutureBookingsForRoom(equipment.getRoom().getId()) : 0;
+                newStatus == EquipmentStatut.EN_PANNE
+                        ? cancelFutureBookingsRequestingEquipment(equipment.getRoom().getId(), equipment.getId())
+                        : 0;
 
         return new EquipmentStatusUpdateResult(equipment, cancelledBookingsCount);
     }
 
-    private int cancelFutureBookingsForRoom(Long roomId) {
+    // N'annule que les réservations ayant réellement sollicité l'équipement tombé en panne
+    // (éco-toggle) : une réservation de la même salle qui ne le demandait pas reste CONFIRMEE,
+    // cohérent avec BookingService.ensureRoomBookable qui ne l'aurait pas bloquée à la création.
+    private int cancelFutureBookingsRequestingEquipment(Long roomId, Long equipmentId) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         List<Booking> affected =
-                bookingRepository.findByRoomIdAndStatutAndDateDebutAfter(roomId, BookingStatut.CONFIRMEE, now);
+                bookingRepository.findByRoomIdAndStatutAndDateDebutAfterAndEquipmentId(roomId, now, equipmentId);
         affected.forEach(
                 booking -> {
                     booking.setStatut(BookingStatut.ANNULEE);

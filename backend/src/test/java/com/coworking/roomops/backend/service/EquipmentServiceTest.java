@@ -14,7 +14,6 @@ import com.coworking.roomops.backend.domain.EquipmentStatut;
 import com.coworking.roomops.backend.domain.Room;
 import com.coworking.roomops.backend.repository.BookingRepository;
 import com.coworking.roomops.backend.repository.EquipmentRepository;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -48,7 +47,7 @@ class EquipmentServiceTest {
         futureBooking.setStatut(BookingStatut.CONFIRMEE);
 
         when(equipmentRepository.findById(2L)).thenReturn(Optional.of(equipment));
-        when(bookingRepository.findByRoomIdAndStatutAndDateDebutAfter(eq(1L), eq(BookingStatut.CONFIRMEE), any()))
+        when(bookingRepository.findByRoomIdAndStatutAndDateDebutAfterAndEquipmentId(eq(1L), any(), eq(2L)))
                 .thenReturn(List.of(futureBooking));
 
         EquipmentService.EquipmentStatusUpdateResult result =
@@ -80,7 +79,7 @@ class EquipmentServiceTest {
         assertEquals(EquipmentStatut.OPERATIONNEL, result.equipment().getStatut());
         assertEquals(0, result.cancelledBookingsCount());
         verify(bookingRepository, never())
-                .findByRoomIdAndStatutAndDateDebutAfter(any(), any(), any(LocalDateTime.class));
+                .findByRoomIdAndStatutAndDateDebutAfterAndEquipmentId(any(), any(), any());
         verify(bookingRepository, never()).saveAll(any());
     }
 }
