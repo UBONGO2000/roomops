@@ -1,10 +1,12 @@
 package com.coworking.roomops.backend.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.coworking.roomops.backend.domain.Booking;
 import com.coworking.roomops.backend.domain.BookingStatut;
 import com.coworking.roomops.backend.domain.Company;
+import com.coworking.roomops.backend.domain.RaisonAnnulation;
 import com.coworking.roomops.backend.domain.Role;
 import com.coworking.roomops.backend.domain.Room;
 import com.coworking.roomops.backend.domain.User;
@@ -90,7 +92,9 @@ class EquipmentOutageIntegrationTest {
         Booking reloadedPast = bookingRepository.findById(pastBooking.getId()).orElseThrow();
 
         assertEquals(BookingStatut.ANNULEE, reloadedFuture.getStatut());
+        assertEquals(RaisonAnnulation.PANNE_EQUIPEMENT, reloadedFuture.getRaisonAnnulation());
         assertEquals(BookingStatut.CONFIRMEE, reloadedPast.getStatut());
+        assertNull(reloadedPast.getRaisonAnnulation());
         assertEquals(
                 com.coworking.roomops.backend.domain.EquipmentStatut.EN_PANNE,
                 equipmentRepository.findById(equipment.getId()).orElseThrow().getStatut());

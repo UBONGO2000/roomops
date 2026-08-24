@@ -1,36 +1,151 @@
 <section class="employee-list" aria-labelledby="employee-list-heading">
-  <h1 id="employee-list-heading">Mes employés</h1>
+  <h1 id="employee-list-heading">
+    {{ isSuperAdmin() ? 'Entreprises & employés' : 'Mes employés' }}
+  </h1>
 
   @if (errorMessage()) {
     <p class="employee-list__error" role="alert">{{ errorMessage() }}</p>
   }
 
   @if (loading()) {
-    <p role="status">Chargement des employés…</p>
+    <p role="status">Chargement…</p>
   } @else {
-    <div class="employee-list__table-wrapper">
-      <table class="employee-list__table">
-        <thead>
-          <tr>
-            <th scope="col">Nom</th>
-            <th scope="col">Email</th>
-            <th scope="col">Rôle</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (employee of employees(); track employee.id) {
-            <tr>
-              <td>{{ employee.prenom }} {{ employee.nom }}</td>
-              <td>{{ employee.email }}</td>
-              <td>{{ employee.role }}</td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="3">Aucun employé dans cette entreprise.</td>
-            </tr>
+    @if (isSuperAdmin()) {
+      <mat-card appearance="outlined" class="employee-list__card">
+        <mat-card-content>
+          <h2>Créer une entreprise</h2>
+          <form
+            [formGroup]="companyForm"
+            (ngSubmit)="createCompany()"
+            class="employee-list__form"
+            novalidate
+          >
+            <mat-form-field appearance="outline">
+              <mat-label>Nom</mat-label>
+              <input matInput formControlName="nom" required />
+              @if (companyForm.controls.nom.invalid && companyForm.controls.nom.touched) {
+                <mat-error>Le nom est obligatoire.</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>SIRET (optionnel)</mat-label>
+              <input matInput formControlName="siret" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Adresse de facturation (optionnel)</mat-label>
+              <input matInput formControlName="adresseFacturation" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Tarif horaire (optionnel)</mat-label>
+              <input matInput type="number" step="0.01" formControlName="tarifHoraire" />
+            </mat-form-field>
+            <button type="submit" mat-flat-button color="primary" [disabled]="creatingCompany()">
+              {{ creatingCompany() ? 'Création…' : "Créer l'entreprise" }}
+            </button>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-form-field appearance="outline" class="employee-list__company-select">
+        <mat-label>Entreprise</mat-label>
+        <mat-select [value]="selectedCompanyId()" (selectionChange)="selectCompany($event.value)">
+          @for (company of companies(); track company.id) {
+            <mat-option [value]="company.id">{{ company.nom }}</mat-option>
           }
-        </tbody>
-      </table>
-    </div>
+        </mat-select>
+      </mat-form-field>
+    }
+
+    @if (targetCompanyId() != null) {
+      @if (loadingEmployees()) {
+        <p role="status">Chargement des employés…</p>
+      } @else {
+        <div class="employee-list__table-wrapper">
+          <table class="employee-list__table">
+            <thead>
+              <tr>
+                <th scope="col">Nom</th>
+                <th scope="col">Email</th>
+                <th scope="col">Rôle</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (employee of employees(); track employee.id) {
+                <tr>
+                  <td>{{ employee.prenom }} {{ employee.nom }}</td>
+                  <td>{{ employee.email }}</td>
+                  <td>{{ employee.role }}</td>
+                  <td>
+                    <button
+                      type="button"
+                      mat-button
+                      color="warn"
+                      [disabled]="removingId() === employee.id"
+                      (click)="removeEmployee(employee)"
+                    >
+                      {{ removingId() === employee.id ? 'Suppression…' : 'Retirer' }}
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4">Aucun employé dans cette entreprise.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <mat-card appearance="outlined" class="employee-list__card">
+          <mat-card-content>
+            <h2>Ajouter un employé</h2>
+            <form
+              [formGroup]="employeeForm"
+              (ngSubmit)="addEmployee()"
+              class="employee-list__form"
+              novalidate
+            >
+              <mat-form-field appearance="outline">
+                <mat-label>Email</mat-label>
+                <input matInput type="email" formControlName="email" required />
+                @if (employeeForm.controls.email.invalid && employeeForm.controls.email.touched) {
+                  <mat-error>Adresse email valide requise.</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Mot de passe</mat-label>
+                <input matInput type="password" formControlName="password" required />
+                @if (
+                  employeeForm.controls.password.invalid && employeeForm.controls.password.touched
+                ) {
+                  <mat-error>Le mot de passe est obligatoire.</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Nom</mat-label>
+                <input matInput formControlName="nom" required />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Prénom</mat-label>
+                <input matInput formControlName="prenom" required />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Rôle</mat-label>
+                <mat-select formControlName="role">
+                  <mat-option value="EMPLOYEE">Employé</mat-option>
+                  <mat-option value="MANAGER">Manager</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <button type="submit" mat-flat-button color="primary" [disabled]="addingEmployee()">
+                {{ addingEmployee() ? 'Ajout…' : 'Ajouter' }}
+              </button>
+            </form>
+          </mat-card-content>
+        </mat-card>
+      }
+    } @else if (isSuperAdmin()) {
+      <p class="employee-list__empty">Sélectionnez une entreprise pour voir ses employés.</p>
+    }
   }
 </section>

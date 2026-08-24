@@ -4,6 +4,7 @@ import com.coworking.roomops.backend.domain.Booking;
 import com.coworking.roomops.backend.domain.BookingStatut;
 import com.coworking.roomops.backend.domain.Equipment;
 import com.coworking.roomops.backend.domain.EquipmentStatut;
+import com.coworking.roomops.backend.domain.RaisonAnnulation;
 import com.coworking.roomops.backend.repository.BookingRepository;
 import com.coworking.roomops.backend.repository.EquipmentRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -53,7 +54,11 @@ public class EquipmentService {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         List<Booking> affected =
                 bookingRepository.findByRoomIdAndStatutAndDateDebutAfter(roomId, BookingStatut.CONFIRMEE, now);
-        affected.forEach(booking -> booking.setStatut(BookingStatut.ANNULEE));
+        affected.forEach(
+                booking -> {
+                    booking.setStatut(BookingStatut.ANNULEE);
+                    booking.setRaisonAnnulation(RaisonAnnulation.PANNE_EQUIPEMENT);
+                });
         bookingRepository.saveAll(affected);
         return affected.size();
     }

@@ -837,6 +837,8 @@ components:
           $ref: '#/components/schemas/BookingStatut'
         motif:
           type: string
+        raisonAnnulation:
+          $ref: '#/components/schemas/RaisonAnnulation'
         equipmentsActives:
           type: array
           items:
@@ -879,6 +881,18 @@ components:
       description: |
         Statut de la réservation. Pas de workflow d'approbation dans le MVP :
         une réservation est confirmée immédiatement si aucun conflit n'est détecté.
+
+    RaisonAnnulation:
+      type: string
+      nullable: true
+      enum:
+        - MANUELLE
+        - PANNE_EQUIPEMENT
+      description: |
+        Raison de l'annulation d'une réservation. Null si la réservation n'est pas annulée
+        (statut CONFIRMEE). MANUELLE si l'utilisateur a annulé lui-même (DELETE /bookings/{id}),
+        PANNE_EQUIPEMENT si l'annulation résulte d'un passage EN_PANNE d'un équipement de la
+        salle (PUT /equipments/{id}/status).
 
     # ---- ROOM ----
     RoomResponse:

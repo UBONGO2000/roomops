@@ -64,6 +64,49 @@
   width: 100%;
 }
 
+.booking-form__equipment-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.booking-form__equipment-group legend {
+  padding: 0 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.booking-form__equipment-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.booking-form__summary {
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.booking-form__eco-score {
+  margin: 0 0 0.5rem;
+}
+
+.booking-form__equipment-summary {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-muted);
+}
+
+.booking-form__confirmation-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 30rem) {
   .booking-form__row {
     flex-direction: column;

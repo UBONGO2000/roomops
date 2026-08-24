@@ -50,8 +50,8 @@
         @if (user.role === 'SUPER_ADMIN') {
           <a routerLink="/equipements" mat-button>Équipements</a>
         }
-        @if (user.role === 'MANAGER') {
-          <a routerLink="/employes" mat-button>Mes employés</a>
+        @if (user.role === 'MANAGER' || user.role === 'SUPER_ADMIN') {
+          <a routerLink="/employes" mat-button>Employés</a>
         }
         <a routerLink="/profil" mat-button>Mon profil</a>
         <span class="site-nav__user">{{ user.email }}</span>

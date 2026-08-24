@@ -57,6 +57,10 @@ public class Booking {
     @Column(nullable = false)
     private BookingStatut statut = BookingStatut.CONFIRMEE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "raison_annulation")
+    private RaisonAnnulation raisonAnnulation;
+
     @Version
     private Long version;
 }

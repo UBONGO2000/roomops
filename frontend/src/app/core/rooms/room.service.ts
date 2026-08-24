@@ -16,8 +16,12 @@ export class RoomService {
     roomId: number,
     dateDebut: string,
     dateFin: string,
+    equipmentIds?: number[],
   ): Observable<AvailabilityResponse> {
-    const params = new HttpParams().set('dateDebut', dateDebut).set('dateFin', dateFin);
+    let params = new HttpParams().set('dateDebut', dateDebut).set('dateFin', dateFin);
+    for (const equipmentId of equipmentIds ?? []) {
+      params = params.append('equipmentIds', equipmentId);
+    }
     return this.http.get<AvailabilityResponse>(
       `${environment.apiBaseUrl}/rooms/${roomId}/availability`,
       { params },

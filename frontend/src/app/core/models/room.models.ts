@@ -1,3 +1,5 @@
+import { EquipmentResponse } from './equipment.models';
+
 export interface RoomResponse {
   id: number;
   nom: string;
@@ -6,6 +8,7 @@ export interface RoomResponse {
   buildingName: string;
   estActif: boolean;
   indisponibilite?: string | null;
+  equipements?: EquipmentResponse[];
 }
 
 export interface AvailabilityResponse {

@@ -54,9 +54,15 @@
                       <span class="booking-list__time">{{ formatTimeRange(booking) }}</span>
                       <span class="booking-list__room">{{ booking.roomName }}</span>
                       @if (booking.statut === 'ANNULEE') {
-                        <span class="booking-list__badge booking-list__badge--cancelled"
-                          >Annulée</span
-                        >
+                        @if (booking.raisonAnnulation === 'PANNE_EQUIPEMENT') {
+                          <span class="booking-list__badge booking-list__badge--outage"
+                            >Annulée · panne équipement</span
+                          >
+                        } @else {
+                          <span class="booking-list__badge booking-list__badge--cancelled"
+                            >Annulée</span
+                          >
+                        }
                       }
                     </div>
                     @if (booking.motif) {
