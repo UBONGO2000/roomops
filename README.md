@@ -6,16 +6,19 @@ chiffres) est fictif.
 
 ## Sommaire
 
-- [Fonctionnalités](#fonctionnalités)
-- [Stack technique](#stack-technique)
-- [Architecture](#architecture)
-- [Démarrage rapide (Docker)](#démarrage-rapide-docker)
-- [Comptes de démonstration](#comptes-de-démonstration)
-- [Développement local sans Docker](#développement-local-sans-docker)
-- [Tests](#tests)
-- [Documentation de l'API](#documentation-de-lapi)
-- [Déploiement en production](#déploiement-en-production)
-- [Structure du dépôt](#structure-du-dépôt)
+- [RoomOps](#roomops)
+  - [Sommaire](#sommaire)
+  - [Fonctionnalités](#fonctionnalités)
+  - [Stack technique](#stack-technique)
+  - [Architecture](#architecture)
+  - [Démarrage rapide (Docker)](#démarrage-rapide-docker)
+  - [Comptes de démonstration](#comptes-de-démonstration)
+  - [Développement local sans Docker](#développement-local-sans-docker)
+    - [Backend](#backend)
+    - [Frontend](#frontend)
+  - [Tests](#tests)
+  - [Documentation de l'API](#documentation-de-lapi)
+  - [Structure du dépôt](#structure-du-dépôt)
 
 ## Fonctionnalités
 
@@ -155,12 +158,6 @@ cd frontend && npx prettier --check "src/**/*.{ts,html,scss}"
 Le contrat REST complet (endpoints, schémas, codes d'erreur) est défini dans
 [`api-contract/openapi.yaml`](api-contract/openapi.yaml) et exploré interactivement via Swagger
 UI une fois le backend démarré : <http://localhost:8080/api/v1/swagger-ui.html>.
-
-## Déploiement en production
-
-Voir [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) : déploiement à partir des images publiées sur
-GHCR via `docker-compose.prod.yml`, procédure de vérification post-déploiement, rollback, et
-limites connues de cette configuration de référence.
 
 ## Structure du dépôt
 
