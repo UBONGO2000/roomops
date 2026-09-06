@@ -8,7 +8,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { combineDateAndTime, toDateInputValue } from '../../core/date.util';
 import { describeApiError } from '../../core/http/error-message';
 import { AvailabilityResponse, RoomResponse } from '../../core/models/room.models';
@@ -27,7 +27,6 @@ import { BookingService } from '../../core/bookings/booking.service';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    MatSnackBarModule,
   ],
   templateUrl: './booking-form.html',
   styleUrl: './booking-form.scss',
