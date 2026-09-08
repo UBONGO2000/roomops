@@ -7,8 +7,8 @@ import { AuthService } from './auth.service';
 
 // Un vrai JWT signé n'est pas nécessaire pour ces tests : seul le payload (2e segment,
 // base64url) est lu par decodeJwtPayload, la signature n'est jamais vérifiée côté client.
-function fakeAccessToken(email: string, role: string): string {
-  const payload = { sub: email, role, type: 'access', iat: 0, exp: 9999999999 };
+function fakeAccessToken(email: string, role: string, exp = 9999999999): string {
+  const payload = { sub: email, role, type: 'access', iat: 0, exp };
   const base64 = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_');
   return `header.${base64}.signature`;
 }
@@ -43,6 +43,31 @@ describe('AuthService', () => {
 
     expect(service.isAuthenticated()).toBe(true);
     expect(service.currentUser()).toEqual({ email: 'a@b.com', role: 'MANAGER' });
+  });
+
+  it('starts unauthenticated when the stored access token is expired', () => {
+    const expiredToken = fakeAccessToken('a@b.com', 'MANAGER', 1);
+    localStorage.setItem('roomops.accessToken', expiredToken);
+
+    const service = TestBed.inject(AuthService);
+
+    expect(service.isAuthenticated()).toBe(false);
+    expect(service.currentUser()).toBeNull();
+  });
+
+  it('shares concurrent refresh requests', () => {
+    const service = TestBed.inject(AuthService);
+    localStorage.setItem('roomops.refreshToken', 'refresh-token');
+
+    service.refreshAccessToken().subscribe();
+    service.refreshAccessToken().subscribe();
+
+    const requests = httpMock.match(`${environment.apiBaseUrl}/auth/refresh`);
+    expect(requests).toHaveLength(1);
+    requests[0].flush({
+      accessToken: fakeAccessToken('a@b.com', 'MANAGER'),
+      tokenType: 'Bearer',
+    });
   });
 
   it('login stores tokens and exposes the decoded current user', () => {

@@ -41,4 +41,10 @@ export class BookingService {
   cancelBooking(id: number): Observable<void> {
     return this.http.delete<void>(`${environment.apiBaseUrl}/bookings/${id}`);
   }
+
+  exportBookingIcal(id: number): Observable<Blob> {
+    return this.http.get(`${environment.apiBaseUrl}/bookings/${id}/ical`, {
+      responseType: 'blob',
+    });
+  }
 }

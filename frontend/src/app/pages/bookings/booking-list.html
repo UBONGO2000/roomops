@@ -82,6 +82,14 @@
                         {{ cancellingId() === booking.id ? 'Annulation…' : 'Annuler' }}
                       </button>
                     }
+                    <button
+                      type="button"
+                      mat-button
+                      [disabled]="exportingId() === booking.id"
+                      (click)="exportIcal(booking)"
+                    >
+                      {{ exportingId() === booking.id ? 'Export…' : 'Exporter iCalendar' }}
+                    </button>
                   </mat-card-content>
                 </mat-card>
               </li>

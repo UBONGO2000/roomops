@@ -24,6 +24,7 @@ export class BookingList {
   protected readonly loading = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly cancellingId = signal<number | null>(null);
+  protected readonly exportingId = signal<number | null>(null);
 
   protected readonly currentUser;
 
@@ -109,6 +110,26 @@ export class BookingList {
     const format = (date: Date) =>
       date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     return `${format(start)} – ${format(end)} ${end.getFullYear()}`;
+  }
+
+  protected exportIcal(booking: BookingResponse): void {
+    this.exportingId.set(booking.id);
+    this.errorMessage.set(null);
+    this.bookingService.exportBookingIcal(booking.id).subscribe({
+      next: (file) => {
+        const url = URL.createObjectURL(file);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `roomops-booking-${booking.id}.ics`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        this.exportingId.set(null);
+      },
+      error: () => {
+        this.exportingId.set(null);
+        this.errorMessage.set("Impossible d'exporter cette réservation au format iCalendar.");
+      },
+    });
   }
 
   private toIsoDate(date: Date): string {

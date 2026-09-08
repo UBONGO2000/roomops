@@ -9,6 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor<Booking> {
 
+        boolean existsByCompanyId(Long companyId);
+
     /**
      * Vérification applicative de recouvrement (première ligne de défense contre le
      * double-booking). {@code excludeBookingId} permet, en modification, d'ignorer la

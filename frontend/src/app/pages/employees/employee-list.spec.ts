@@ -12,6 +12,7 @@ describe('EmployeeList', () => {
   let companyServiceStub: {
     listCompanies: ReturnType<typeof vi.fn>;
     createCompany: ReturnType<typeof vi.fn>;
+    deleteCompany: ReturnType<typeof vi.fn>;
     getCompanyEmployees: ReturnType<typeof vi.fn>;
     addEmployee: ReturnType<typeof vi.fn>;
     removeEmployee: ReturnType<typeof vi.fn>;
@@ -51,6 +52,7 @@ describe('EmployeeList', () => {
     };
     companyForm: { setValue(value: unknown): void };
     createCompany(): void;
+    deleteCompany(): void;
     addEmployee(): void;
     removeEmployee(target: UserResponse): void;
     selectCompany(companyId: number): void;
@@ -68,6 +70,7 @@ describe('EmployeeList', () => {
     companyServiceStub = {
       listCompanies: vi.fn(() => of([])),
       createCompany: vi.fn(),
+      deleteCompany: vi.fn(),
       getCompanyEmployees: vi.fn(() => of([])),
       addEmployee: vi.fn(),
       removeEmployee: vi.fn(),
@@ -232,6 +235,23 @@ describe('EmployeeList', () => {
       );
       expect(component.companies()).toContainEqual(created);
       expect(companyServiceStub.getCompanyEmployees).toHaveBeenCalledWith(5);
+    });
+
+    it('removes a deleted company from the dropdown', () => {
+      const company: CompanyResponse = { id: 5, nom: 'Entreprise à supprimer' };
+      companyServiceStub.listCompanies.mockReturnValue(of([company]));
+      companyServiceStub.deleteCompany.mockReturnValue(of(undefined));
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      const fixture = TestBed.createComponent(EmployeeList);
+      fixture.detectChanges();
+      const component = internals(fixture);
+      component.selectCompany(company.id);
+
+      component.deleteCompany();
+
+      expect(companyServiceStub.deleteCompany).toHaveBeenCalledWith(company.id);
+      expect(component.companies()).not.toContainEqual(company);
     });
   });
 });

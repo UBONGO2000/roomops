@@ -100,4 +100,13 @@ describe('BookingService', () => {
     expect(req.request.method).toBe('DELETE');
     req.flush(null);
   });
+
+  it('exportBookingIcal performs a GET returning a blob', () => {
+    service.exportBookingIcal(7).subscribe((result) => expect(result).toBeInstanceOf(Blob));
+
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/bookings/7/ical`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.responseType).toBe('blob');
+    req.flush(new Blob(['BEGIN:VCALENDAR'], { type: 'text/calendar' }));
+  });
 });

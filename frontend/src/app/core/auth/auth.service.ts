@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, finalize, shareReplay, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, RefreshTokenResponse, Role, TokenResponse } from '../models/auth.models';
 import { decodeJwtPayload } from './jwt.util';
@@ -14,6 +14,7 @@ export interface CurrentUser {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly currentUserSignal;
+  private refreshRequest$: Observable<RefreshTokenResponse> | null = null;
 
   readonly currentUser;
   readonly isAuthenticated;
@@ -40,15 +41,22 @@ export class AuthService {
   }
 
   refreshAccessToken(): Observable<RefreshTokenResponse> {
+    if (this.refreshRequest$) {
+      return this.refreshRequest$;
+    }
+
     const refreshToken = this.tokenStorage.getRefreshToken();
-    return this.http
+    this.refreshRequest$ = this.http
       .post<RefreshTokenResponse>(`${environment.apiBaseUrl}/auth/refresh`, { refreshToken })
       .pipe(
         tap((response) => {
           this.tokenStorage.setAccessToken(response.accessToken);
           this.currentUserSignal.set(this.readUserFromStoredToken());
         }),
+        finalize(() => (this.refreshRequest$ = null)),
+        shareReplay({ bufferSize: 1, refCount: false }),
       );
+    return this.refreshRequest$;
   }
 
   logout(): void {
@@ -70,7 +78,7 @@ export class AuthService {
       return null;
     }
     const payload = decodeJwtPayload(token);
-    if (!payload) {
+    if (!payload || payload.type !== 'access' || payload.exp <= Math.floor(Date.now() / 1000)) {
       return null;
     }
     return { email: payload.sub, role: payload.role as Role };

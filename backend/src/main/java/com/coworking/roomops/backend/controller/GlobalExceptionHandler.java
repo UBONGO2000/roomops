@@ -1,6 +1,7 @@
 package com.coworking.roomops.backend.controller;
 
 import com.coworking.roomops.backend.exception.BookingConflictException;
+import com.coworking.roomops.backend.exception.CompanyHasBookingsException;
 import com.coworking.roomops.backend.exception.EmployeeHasBookingsException;
 import com.coworking.roomops.backend.exception.InvalidBookingPeriodException;
 import com.coworking.roomops.backend.exception.InvalidEquipmentSelectionException;
@@ -46,6 +47,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmployeeHasBookingsException.class)
     public ResponseEntity<ErrorResponse> handleEmployeeHasBookings(EmployeeHasBookingsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody("EMPLOYEE_HAS_BOOKINGS", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CompanyHasBookingsException.class)
+    public ResponseEntity<ErrorResponse> handleCompanyHasBookings(CompanyHasBookingsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody("COMPANY_HAS_BOOKINGS", "Impossible de supprimer cette entreprise : elle possède des réservations"));
     }
 
     @ExceptionHandler(BookingConflictException.class)

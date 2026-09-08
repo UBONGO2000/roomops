@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -42,6 +43,13 @@ public class CompanyController implements CompaniesApi {
     }
 
     @Override
+    public ResponseEntity<Void> deleteCompany(Long companyId) {
+        companyService.deleteCompany(companyId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('MANAGER','SUPER_ADMIN')")
     public ResponseEntity<List<UserResponse>> getCompanyEmployees(Long companyId) {
         List<UserResponse> body =
                 companyService.getCompanyEmployees(companyId).stream().map(UserMapper::toResponse).toList();
@@ -49,6 +57,7 @@ public class CompanyController implements CompaniesApi {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('MANAGER','SUPER_ADMIN')")
     public ResponseEntity<UserResponse> addEmployee(Long companyId, CreateUserRequest createUserRequest) {
         User saved =
                 companyService.addEmployee(
@@ -62,6 +71,7 @@ public class CompanyController implements CompaniesApi {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('MANAGER','SUPER_ADMIN')")
     public ResponseEntity<Void> removeEmployee(Long companyId, Long userId) {
         companyService.removeEmployee(companyId, userId);
         return ResponseEntity.noContent().build();

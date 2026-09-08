@@ -28,15 +28,17 @@ same origin it loaded the page from, regardless of the domain or IP used to reac
    cp .env.prod.example .env.prod
    ```
 
-   At minimum, set `POSTGRES_PASSWORD` and `JWT_SECRET` to values generated for this environment
-   — never reuse the defaults committed in the repository (see `.env.prod.example` for how to
-   generate a JWT secret).
+    At minimum, set `POSTGRES_PASSWORD`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS` and `IMAGE_TAG` to
+    values for this environment — never reuse development defaults. `JWT_SECRET` must contain at
+    least 32 random bytes encoded in base64, and `CORS_ALLOWED_ORIGINS` must be the exact public
+    HTTPS origin without a trailing slash.
 
 2. Pull the images and start the stack:
 
    ```bash
-   docker compose -f docker-compose.prod.yml --env-file .env.prod pull
-   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+    docker compose -f docker-compose.prod.yml --env-file .env.prod config
+    docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+    docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
    ```
 
 3. Verify (see below).
@@ -50,7 +52,7 @@ docker compose -f docker-compose.prod.yml ps
 All four services should show as `healthy` (allow up to ~30s for the backend, which waits on
 Postgres and Redis to become healthy first). Then:
 
-- `curl http://<host>:<FRONTEND_PORT>/api/v1/actuator/health` returns `{"status":"UP",...}`.
+- `curl https://<public-host>/api/v1/actuator/health` returns `{"status":"UP",...}`.
 - Open `http://<host>:<FRONTEND_PORT>/` in a browser, log in with a seed account (see README —
   development credentials only), and create a booking to confirm the full path (frontend → nginx
   → backend → PostgreSQL) works end to end.
@@ -91,6 +93,12 @@ effect on production traffic; it is intentionally not part of `.env.prod.example
 - **No TLS.** nginx listens on plain HTTP. A real deployment needs a TLS-terminating reverse
   proxy or load balancer in front of it (e.g. Caddy, Traefik, or a managed load balancer) — out
   of scope here.
+- **HTTP security headers.** nginx ajoute désormais une CSP, `X-Frame-Options`,
+  `X-Content-Type-Options`, une `Referrer-Policy` et une `Permissions-Policy`. Ces en-têtes
+  réduisent l'impact d'un XSS ou d'un clickjacking, mais ne remplacent pas HTTPS.
+- **Logs.** Le niveau par défaut est `INFO` pour éviter les détails de sécurité en production.
+  Le diagnostic peut être activé temporairement avec `ROOMOPS_LOG_LEVEL=DEBUG` et
+  `SPRING_SECURITY_LOG_LEVEL=DEBUG`, puis désactivé après investigation.
 - **No automated backup.** The `postgres_data` volume persists across restarts and redeploys, but
   nothing backs it up. A real deployment needs a scheduled `pg_dump` (or volume snapshot) shipped
   off-host.
@@ -98,3 +106,9 @@ effect on production traffic; it is intentionally not part of `.env.prod.example
   PostgreSQL and Redis are reachable, not that `JWT_SECRET` is set to a correct or intentional
   value — a misconfigured secret (e.g. accidentally left as the dev default) would report
   healthy while silently weakening authentication.
+- **Production profile.** Le backend est lancé avec le profil `prod`. Les paramètres sensibles
+  sont obligatoires via l'environnement et `open-in-view` est désactivé. Exécuter `docker compose
+  ... config` avant `up` détecte les variables manquantes.
+- **Demo data.** Les migrations historiques V2/V4 contiennent encore des comptes de démonstration.
+  Ils doivent être supprimés ou anonymisés avant toute exposition publique ; une stratégie de
+  migration dédiée est nécessaire pour une base de production déjà initialisée.

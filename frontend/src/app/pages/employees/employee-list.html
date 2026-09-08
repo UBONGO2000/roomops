@@ -54,6 +54,15 @@
           }
         </mat-select>
       </mat-form-field>
+      <button
+        type="button"
+        mat-button
+        color="warn"
+        [disabled]="selectedCompanyId() == null || deletingCompany()"
+        (click)="deleteCompany()"
+      >
+        {{ deletingCompany() ? 'Suppression…' : "Supprimer l'entreprise" }}
+      </button>
     }
 
     @if (targetCompanyId() != null) {

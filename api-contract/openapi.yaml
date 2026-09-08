@@ -269,7 +269,6 @@ paths:
           description: Données invalides
         '409':
           description: Conflit de version ou de créneau
-
     delete:
       tags:
         - Bookings
@@ -556,11 +555,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/CompanyResponse'
 
+  /companies/{companyId}:
+    delete:
+      tags:
+        - Companies
+      summary: Supprimer une entreprise (Super-Admin)
+      description: >-
+        Supprime une entreprise et ses utilisateurs si aucune réservation ne lui est rattachée.
+        Cette opération est réservée au Super-Admin afin de préserver l'isolation entre entreprises.
+      operationId: deleteCompany
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Entreprise supprimée
+        '404':
+          description: Entreprise non trouvée
+        '409':
+          description: Entreprise impossible à supprimer car elle possède des réservations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /companies/{companyId}/employees:
     get:
       tags:
         - Companies
-      summary: Lister les employés d'une entreprise (Manager, Super-Admin)
+      summary: Lister les employés d'une entreprise (Manager de cette entreprise, Super-Admin)
       operationId: getCompanyEmployees
       security:
         - bearerAuth: []
@@ -580,11 +609,18 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/UserResponse'
+        '403':
+          description: Employé non autorisé, ou Manager appartenant à une autre entreprise
+        '404':
+          description: Entreprise non trouvée
 
     post:
       tags:
         - Companies
-      summary: Ajouter un employé à l'entreprise (Manager, Super-Admin)
+      summary: Ajouter un membre à l'entreprise (Manager de cette entreprise, Super-Admin)
+      description: >-
+        Un Manager peut créer uniquement un utilisateur EMPLOYEE. Un Super-Admin peut créer un
+        EMPLOYEE ou un MANAGER. Le rôle SUPER_ADMIN est interdit par cette opération.
       operationId: addEmployee
       security:
         - bearerAuth: []
@@ -608,12 +644,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Données invalides ou rôle non conforme
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Employé non autorisé, Manager d'une autre entreprise, ou rôle interdit
+        '404':
+          description: Entreprise non trouvée
 
   /companies/{companyId}/employees/{userId}:
     delete:
       tags:
         - Companies
-      summary: Supprimer un employé (Manager, Super-Admin)
+      summary: Supprimer un employé (Manager de cette entreprise, Super-Admin)
       operationId: removeEmployee
       security:
         - bearerAuth: []
@@ -633,6 +679,16 @@ paths:
       responses:
         '204':
           description: Employé supprimé
+        '403':
+          description: Employé non autorisé, ou Manager appartenant à une autre entreprise
+        '404':
+          description: Entreprise ou employé non trouvé
+        '409':
+          description: Employé impossible à supprimer car il possède des réservations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # ============================
   # UTILISATEURS (PROFIL & RGPD)

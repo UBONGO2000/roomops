@@ -4,6 +4,8 @@ import com.coworking.roomops.backend.domain.Company;
 import com.coworking.roomops.backend.domain.Role;
 import com.coworking.roomops.backend.domain.User;
 import com.coworking.roomops.backend.exception.EmployeeHasBookingsException;
+import com.coworking.roomops.backend.exception.CompanyHasBookingsException;
+import com.coworking.roomops.backend.repository.BookingRepository;
 import com.coworking.roomops.backend.repository.CompanyRepository;
 import com.coworking.roomops.backend.repository.UserRepository;
 import com.coworking.roomops.backend.security.CurrentUserProvider;
@@ -15,22 +17,26 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
     private final PasswordEncoder passwordEncoder;
     private final CurrentUserProvider currentUserProvider;
 
     public CompanyService(
             CompanyRepository companyRepository,
             UserRepository userRepository,
+            BookingRepository bookingRepository,
             PasswordEncoder passwordEncoder,
             CurrentUserProvider currentUserProvider) {
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
+        this.bookingRepository = bookingRepository;
         this.passwordEncoder = passwordEncoder;
         this.currentUserProvider = currentUserProvider;
     }
@@ -50,6 +56,17 @@ public class CompanyService {
         return companyRepository.save(company);
     }
 
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Transactional
+    public void deleteCompany(Long companyId) {
+        Company company = getCompanyOrThrow(companyId);
+        if (bookingRepository.existsByCompanyId(companyId)) {
+            throw new CompanyHasBookingsException("Cette entreprise possède des réservations");
+        }
+        userRepository.deleteByCompanyId(companyId);
+        companyRepository.delete(company);
+    }
+
     @PreAuthorize("hasAnyRole('MANAGER','SUPER_ADMIN')")
     public List<User> getCompanyEmployees(Long companyId) {
         getCompanyOrThrow(companyId);
@@ -60,14 +77,21 @@ public class CompanyService {
     @PreAuthorize("hasAnyRole('MANAGER','SUPER_ADMIN')")
     public User addEmployee(Long companyId, String email, String rawPassword, String nom, String prenom, Role role) {
         Company company = getCompanyOrThrow(companyId);
+        User actingUser = currentUserProvider.get();
         requireSameCompanyIfManager(companyId);
+
+        Role requestedRole = role != null ? role : Role.EMPLOYEE;
+        if (requestedRole == Role.SUPER_ADMIN
+                || (actingUser.getRole() == Role.MANAGER && requestedRole != Role.EMPLOYEE)) {
+            throw new AccessDeniedException("Ce rôle ne peut pas être créé depuis cette entreprise");
+        }
 
         User user = new User();
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
         user.setNom(nom);
         user.setPrenom(prenom);
-        user.setRole(role);
+        user.setRole(requestedRole);
         user.setCompany(company);
         return userRepository.save(user);
     }

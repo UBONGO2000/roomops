@@ -8,11 +8,14 @@ import io.jsonwebtoken.security.Keys;
 import java.time.Instant;
 import java.util.Date;
 import javax.crypto.SecretKey;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class JwtService {
+
+    private static final String DEVELOPMENT_SECRET = "dwlr18CVc9Fv5XYAy7XY1h93alLRHn91HUfD13DbKd8c=";
 
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_TYPE = "type";
@@ -23,13 +26,22 @@ public class JwtService {
     private final long accessTokenTtlMillis;
     private final long refreshTokenTtlMillis;
 
+    @Autowired
     public JwtService(
             @Value("${roomops.security.jwt.secret}") String base64Secret,
             @Value("${roomops.security.jwt.access-token-ttl-ms}") long accessTokenTtlMillis,
-            @Value("${roomops.security.jwt.refresh-token-ttl-ms}") long refreshTokenTtlMillis) {
+            @Value("${roomops.security.jwt.refresh-token-ttl-ms}") long refreshTokenTtlMillis,
+            @Value("${roomops.security.jwt.reject-development-secret:false}") boolean rejectDevelopmentSecret) {
+        if (rejectDevelopmentSecret && DEVELOPMENT_SECRET.equals(base64Secret)) {
+            throw new IllegalStateException("Le secret JWT de développement est interdit avec le profil prod");
+        }
         this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
         this.accessTokenTtlMillis = accessTokenTtlMillis;
         this.refreshTokenTtlMillis = refreshTokenTtlMillis;
+    }
+
+    public JwtService(String base64Secret, long accessTokenTtlMillis, long refreshTokenTtlMillis) {
+        this(base64Secret, accessTokenTtlMillis, refreshTokenTtlMillis, false);
     }
 
     public String generateAccessToken(User user) {

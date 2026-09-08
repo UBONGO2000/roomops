@@ -13,6 +13,7 @@ describe('BookingList', () => {
   let bookingServiceStub: {
     listBookings: ReturnType<typeof vi.fn>;
     cancelBooking: ReturnType<typeof vi.fn>;
+    exportBookingIcal: ReturnType<typeof vi.fn>;
   };
   let currentUserSignal: ReturnType<typeof signal<CurrentUser | null>>;
 
@@ -43,6 +44,7 @@ describe('BookingList', () => {
     bookingServiceStub = {
       listBookings: vi.fn(() => of(pageOf([]))),
       cancelBooking: vi.fn(),
+      exportBookingIcal: vi.fn(),
     };
 
     TestBed.configureTestingModule({
@@ -146,5 +148,28 @@ describe('BookingList', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain("Impossible d'annuler cette réservation");
+  });
+
+  it('downloads an iCalendar file when export succeeds', () => {
+    bookingServiceStub.exportBookingIcal.mockReturnValue(
+      of(new Blob(['BEGIN:VCALENDAR'], { type: 'text/calendar' })),
+    );
+    const createObjectURL = vi.fn(() => 'blob:ical-url');
+    const revokeObjectURL = vi.fn();
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(createObjectURL);
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(revokeObjectURL);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const fixture = TestBed.createComponent(BookingList);
+    fixture.detectChanges();
+
+    (fixture.componentInstance as unknown as { exportIcal(booking: BookingResponse): void }).exportIcal(
+      bookingAt(7, '2030-01-15'),
+    );
+
+    expect(bookingServiceStub.exportBookingIcal).toHaveBeenCalledWith(7);
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:ical-url');
+    vi.restoreAllMocks();
   });
 });

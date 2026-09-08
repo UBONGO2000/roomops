@@ -76,7 +76,8 @@ describe('Profile', () => {
     userServiceStub.exportUserData.mockReturnValue(of(exportPayload));
     const createObjectURL = vi.fn(() => 'blob:mock-url');
     const revokeObjectURL = vi.fn();
-    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(createObjectURL);
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(revokeObjectURL);
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     const fixture = TestBed.createComponent(Profile);
@@ -88,7 +89,7 @@ describe('Profile', () => {
     expect(clickSpy).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
 
-    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('does nothing when the anonymization confirmation is declined', () => {

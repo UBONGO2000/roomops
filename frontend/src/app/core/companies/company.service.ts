@@ -17,6 +17,10 @@ export class CompanyService {
     return this.http.post<CompanyResponse>(`${environment.apiBaseUrl}/companies`, request);
   }
 
+  deleteCompany(companyId: number): Observable<void> {
+    return this.http.delete<void>(`${environment.apiBaseUrl}/companies/${companyId}`);
+  }
+
   getCompanyEmployees(companyId: number): Observable<UserResponse[]> {
     return this.http.get<UserResponse[]>(
       `${environment.apiBaseUrl}/companies/${companyId}/employees`,

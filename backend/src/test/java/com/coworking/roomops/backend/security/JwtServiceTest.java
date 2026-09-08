@@ -64,4 +64,11 @@ class JwtServiceTest {
 
         assertThrows(ExpiredJwtException.class, () -> jwtService.parseAndValidate(token));
     }
+
+    @Test
+    void productionProfile_rejectsDevelopmentSecret() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> new JwtService(SECRET, 900_000L, 604_800_000L, true));
+    }
 }

@@ -43,6 +43,14 @@ describe('CompanyService', () => {
     req.flush(response);
   });
 
+  it('deleteCompany performs a DELETE on /companies/{id}', () => {
+    service.deleteCompany(2).subscribe();
+
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/companies/2`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
+  });
+
   it('getCompanyEmployees performs a GET on /companies/{id}/employees', () => {
     const employees: UserResponse[] = [
       { id: 1, email: 'a@b.com', nom: 'Dupont', prenom: 'Jean', role: 'EMPLOYEE', companyId: 2 },

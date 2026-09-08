@@ -49,6 +49,7 @@ export class EmployeeList implements OnInit {
   protected readonly companies = signal<CompanyResponse[]>([]);
   protected readonly selectedCompanyId = signal<number | null>(null);
   protected readonly creatingCompany = signal(false);
+  protected readonly deletingCompany = signal(false);
 
   protected readonly employees = signal<UserResponse[]>([]);
   protected readonly loadingEmployees = signal(false);
@@ -98,6 +99,34 @@ export class EmployeeList implements OnInit {
   protected selectCompany(companyId: number): void {
     this.selectedCompanyId.set(companyId);
     this.loadEmployees(companyId);
+  }
+
+  protected deleteCompany(): void {
+    const companyId = this.selectedCompanyId();
+    const company = this.companies().find((item) => item.id === companyId);
+    if (!company || !window.confirm(`Supprimer l'entreprise ${company.nom} ?`)) {
+      return;
+    }
+
+    this.deletingCompany.set(true);
+    this.errorMessage.set(null);
+    this.companyService.deleteCompany(company.id).subscribe({
+      next: () => {
+        this.companies.update((list) => list.filter((item) => item.id !== company.id));
+        this.selectedCompanyId.set(null);
+        this.employees.set([]);
+        this.deletingCompany.set(false);
+      },
+      error: (error: unknown) => {
+        this.deletingCompany.set(false);
+        this.errorMessage.set(
+          describeApiError(error, {
+            409: 'Impossible de supprimer cette entreprise : elle possède des réservations.',
+            403: "Seul un Super-Admin peut supprimer une entreprise.",
+          }),
+        );
+      },
+    });
   }
 
   protected createCompany(): void {
