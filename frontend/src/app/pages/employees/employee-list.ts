@@ -122,7 +122,7 @@ export class EmployeeList implements OnInit {
         this.errorMessage.set(
           describeApiError(error, {
             409: 'Impossible de supprimer cette entreprise : elle possède des réservations.',
-            403: "Seul un Super-Admin peut supprimer une entreprise.",
+            403: 'Seul un Super-Admin peut supprimer une entreprise.',
           }),
         );
       },

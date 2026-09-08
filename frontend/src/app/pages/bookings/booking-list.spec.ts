@@ -162,9 +162,9 @@ describe('BookingList', () => {
     const fixture = TestBed.createComponent(BookingList);
     fixture.detectChanges();
 
-    (fixture.componentInstance as unknown as { exportIcal(booking: BookingResponse): void }).exportIcal(
-      bookingAt(7, '2030-01-15'),
-    );
+    (
+      fixture.componentInstance as unknown as { exportIcal(booking: BookingResponse): void }
+    ).exportIcal(bookingAt(7, '2030-01-15'));
 
     expect(bookingServiceStub.exportBookingIcal).toHaveBeenCalledWith(7);
     expect(createObjectURL).toHaveBeenCalled();
