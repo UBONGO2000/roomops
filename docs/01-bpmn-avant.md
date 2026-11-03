@@ -27,7 +27,7 @@ flowchart LR
 - Aucun contrôle automatique ne garantit l'absence de double réservation.
 - Les conséquences sont visibles en aval : surréservation, conflit découvert en réunion, correction manuelle.
 
-## Limites à expliciter dans le mémoire
+## Limites
 
 | Limite | Conséquence |
 |---|---|
